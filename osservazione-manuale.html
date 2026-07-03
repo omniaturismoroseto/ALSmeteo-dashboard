@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Osservazione Manuale — Omnia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-abyss: #0A1C24;
+    --bg-panel: #0F2733;
+    --bg-panel-raised: #163542;
+    --ink: #E8F0EE;
+    --ink-muted: #7FA0A8;
+    --brass: #C99B4A;
+    --line: #234653;
+    --successo: #2F9E44;
+    --errore: #E0393E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg-abyss);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    padding: 1.25rem 1.25rem 3rem;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin: 0 0 0.2rem;
+  }
+  h1 span { color: var(--brass); }
+  p.sottotitolo {
+    color: var(--ink-muted);
+    font-size: 0.8rem;
+    margin: 0 0 1.5rem;
+  }
+  label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+    margin: 1.1rem 0 0.4rem;
+  }
+  select, input[type="number"], input[type="datetime-local"], textarea {
+    width: 100%;
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 8px;
+  }
+  select:focus, input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--brass);
+  }
+  textarea { font-family: 'Space Grotesk', sans-serif; min-height: 70px; resize: vertical; }
+
+  .riga-doppia {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+  }
+
+  .gruppo-check {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .pillola-check {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-size: 0.78rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .pillola-check.attiva {
+    border-color: var(--brass);
+    background: var(--bg-panel-raised);
+    color: var(--brass);
+  }
+
+  button#invia {
+    width: 100%;
+    margin-top: 1.8rem;
+    background: var(--brass);
+    color: #1A1206;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  button#invia:active { opacity: 0.85; }
+
+  .messaggio {
+    margin-top: 1rem;
+    font-size: 0.82rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    display: none;
+  }
+
+  .messaggio.successo { display: block; background: #163C24; color: var(--successo); }
+  .messaggio.errore { display: block; background: #3D1416; color: var(--errore); }
+</style>
+</head>
+<body>
+
+<h1>Osservazione <span>manuale</span></h1>
+<p class="sottotitolo">Quello che vedi tu, sul posto — serve a tarare le previsioni dell'ensemble.</p>
+
+<label for="punto">Punto</label>
+<select id="punto">
+  <option value="roseto_nord">Roseto Nord</option>
+  <option value="roseto_sud">Roseto Sud</option>
+  <option value="pineto">Pineto</option>
+  <option value="offshore">Offshore</option>
+</select>
+
+<label for="momento">Data e ora</label>
+<input type="datetime-local" id="momento">
+
+<div class="riga-doppia">
+  <div>
+    <label for="vento">Vento (nodi)</label>
+    <input type="number" id="vento" step="0.5" placeholder="es. 12">
+  </div>
+  <div>
+    <label for="direzione">Direzione (gradi)</label>
+    <input type="number" id="direzione" min="0" max="360" placeholder="es. 270">
+  </div>
+</div>
+
+<div class="riga-doppia">
+  <div>
+    <label for="onda">Altezza onda (m)</label>
+    <input type="number" id="onda" step="0.1" placeholder="es. 0.8">
+  </div>
+  <div>
+    <label for="cielo">Cielo</label>
+    <select id="cielo">
+      <option value="sereno">Sereno</option>
+      <option value="poco_nuvoloso">Poco nuvoloso</option>
+      <option value="nuvoloso">Nuvoloso</option>
+      <option value="pioggia">Pioggia</option>
+      <option value="temporale">Temporale</option>
+    </select>
+  </div>
+</div>
+
+<label>Condizioni percepite</label>
+<div class="gruppo-check">
+  <div class="pillola-check" data-flag="garbino">Garbino</div>
+  <div class="pillola-check" data-flag="raffiche">Raffiche forti</div>
+  <div class="pillola-check" data-flag="mare_mosso">Mare mosso</div>
+  <div class="pillola-check" data-flag="corrente_forte">Corrente forte</div>
+</div>
+
+<label for="note">Note</label>
+<textarea id="note" placeholder="Qualsiasi osservazione utile, in linguaggio libero"></textarea>
+
+<button id="invia">Registra osservazione</button>
+<div class="messaggio" id="messaggio"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Stessa configurazione usata in plancia-meteo.html / Omnia Segnalazioni.
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "699028105579",
+  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
+  measurementId: "G-M3PSWKEYCJ"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const flagsAttivi = new Set();
+document.querySelectorAll(".pillola-check").forEach((el) => {
+  el.addEventListener("click", () => {
+    const flag = el.getAttribute("data-flag");
+    if (flagsAttivi.has(flag)) { flagsAttivi.delete(flag); el.classList.remove("attiva"); }
+    else { flagsAttivi.add(flag); el.classList.add("attiva"); }
+  });
+});
+
+// Precompila data/ora con adesso (ora locale del dispositivo).
+const campoMomento = document.getElementById("momento");
+const adesso = new Date();
+adesso.setMinutes(adesso.getMinutes() - adesso.getTimezoneOffset());
+campoMomento.value = adesso.toISOString().slice(0, 16);
+
+function numeroONull(valore) {
+  return valore === "" || valore === null ? null : parseFloat(valore);
+}
+
+document.getElementById("invia").addEventListener("click", async () => {
+  const messaggio = document.getElementById("messaggio");
+  messaggio.className = "messaggio";
+
+  const osservazione = {
+    punto: document.getElementById("punto").value,
+    momento: new Date(campoMomento.value).toISOString(),
+    ventoNodi: numeroONull(document.getElementById("vento").value),
+    direzioneGradi: numeroONull(document.getElementById("direzione").value),
+    altezzaOndaM: numeroONull(document.getElementById("onda").value),
+    cielo: document.getElementById("cielo").value,
+    flag: Array.from(flagsAttivi),
+    note: document.getElementById("note").value.trim(),
+    autore: "Marco",
+    inseritoIl: serverTimestamp(),
+  };
+
+  try {
+    await addDoc(collection(db, "osservazioniManuali"), osservazione);
+    messaggio.textContent = "Osservazione registrata. Verrà confrontata con la previsione più vicina per la calibrazione.";
+    messaggio.classList.add("successo");
+    document.getElementById("vento").value = "";
+    document.getElementById("direzione").value = "";
+    document.getElementById("onda").value = "";
+    document.getElementById("note").value = "";
+    flagsAttivi.clear();
+    document.querySelectorAll(".pillola-check").forEach((el) => el.classList.remove("attiva"));
+  } catch (errore) {
+    console.error(errore);
+    messaggio.textContent = "Errore nell'invio. Controlla la connessione e riprova.";
+    messaggio.classList.add("errore");
+  }
+});
+</script>
+
+</body>
+</html>

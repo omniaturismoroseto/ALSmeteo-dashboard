@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plancia Meteo Omnia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root {
+    --bg-abyss: #0A1C24;
+    --bg-panel: #0F2733;
+    --bg-panel-raised: #163542;
+    --bg-panel-raised-2: #1D4353;
+    --ink: #E8F0EE;
+    --ink-muted: #7FA0A8;
+    --ink-faint: #4C6870;
+    --brass: #C99B4A;
+    --brass-dim: #8C6E3B;
+    --line: #234653;
+    --flag-verde: #2F9E44;
+    --flag-verde-bg: #163C24;
+    --flag-giallo: #F0B429;
+    --flag-giallo-bg: #3D2F0C;
+    --flag-rosso: #E0393E;
+    --flag-rosso-bg: #3D1416;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg-abyss);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 0 3rem;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  header {
+    padding: 1.5rem 1.25rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    background: var(--bg-abyss);
+    z-index: 10;
+  }
+
+  .titolo-riga {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  h1 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  h1 span { color: var(--brass); }
+
+  .stato-live {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .pallino-live {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--flag-verde);
+    animation: pulsa 2.4s ease-in-out infinite;
+  }
+
+  @keyframes pulsa {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .sottotitolo {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+
+  main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 0;
+  }
+
+  .messaggio-stato {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+  }
+
+  .griglia-punti {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.9rem;
+    margin-bottom: 2rem;
+  }
+
+  .carta-punto {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .carta-punto:hover { border-color: var(--brass-dim); }
+
+  .carta-punto.selezionata {
+    border-color: var(--brass);
+    background: var(--bg-panel-raised);
+  }
+
+  .carta-testa {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+  }
+
+  .nome-punto {
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  .badge-bandiera {
+    font-size: 0.62rem;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .badge-verde { background: var(--flag-verde-bg); color: var(--flag-verde); }
+  .badge-giallo { background: var(--flag-giallo-bg); color: var(--flag-giallo); }
+  .badge-rosso { background: var(--flag-rosso-bg); color: var(--flag-rosso); }
+
+  .corpo-carta {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .letture {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .lettura-riga {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+
+  .lettura-valore {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .lettura-unita {
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+  }
+
+  .lettura-etichetta {
+    font-size: 0.62rem;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 0.5rem;
+  }
+
+  .avviso-garbino {
+    margin-top: 0.5rem;
+    font-size: 0.65rem;
+    color: var(--flag-rosso);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .riga-mare {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.4rem;
+    margin-top: 0.7rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .banner-eventi {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .banner-riga {
+    background: var(--flag-giallo-bg);
+    border: 1px solid var(--brass-dim);
+    color: var(--flag-giallo);
+    font-size: 0.78rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+  }
+
+  .sezione-titolo {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    margin: 0 0 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .selettore-punti {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .pillola {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.72rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+
+  .pillola.attiva {
+    border-color: var(--brass);
+    color: var(--brass);
+    background: var(--bg-panel-raised);
+  }
+
+  .pannello-grafico {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1rem 0.6rem;
+    margin-bottom: 2rem;
+  }
+
+  .pannello-satellite {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .satellite-immagine {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    display: block;
+  }
+
+  .satellite-nota {
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    margin-top: 0.6rem;
+  }
+
+  .pannello-radar {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    margin-bottom: 2rem;
+  }
+
+  #mappa-radar {
+    width: 100%;
+    height: 320px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #0d222b;
+  }
+
+  .radar-controlli {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.7rem;
+  }
+
+  .radar-bottone {
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    color: var(--brass);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .radar-tempo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    flex: 1;
+  }
+
+  .radar-tempo .futuro { color: var(--brass); }
+
+  .grafico-contenitore {
+    position: relative;
+    height: 230px;
+    margin-top: 0.6rem;
+  }
+
+  .legenda-grafico {
+    display: flex;
+    gap: 1.1rem;
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .legenda-voce {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .segno-legenda {
+    width: 12px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  footer {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+    color: var(--ink-faint);
+    font-size: 0.68rem;
+    font-family: 'IBM Plex Mono', monospace;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .bottone-refresh {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .bottone-refresh:hover { border-color: var(--brass-dim); color: var(--brass); }
+
+  @media (max-width: 520px) {
+    .griglia-punti { grid-template-columns: 1fr 1fr; }
+    .corpo-carta { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="titolo-riga">
+    <h1>Bollettino Meteo <span>Omnia</span> · Plancia</h1>
+    <div class="stato-live"><span class="pallino-live" id="pallino-live"></span><span id="testo-live">connessione...</span></div>
+  </div>
+  <p class="sottotitolo" id="sottotitolo">Roseto degli Abruzzi · Pineto</p>
+</header>
+
+<main>
+  <div id="contenuto">
+    <div class="messaggio-stato">Caricamento dati in corso...</div>
+  </div>
+</main>
+
+<footer>
+  <span id="footer-info">—</span>
+  <button class="bottone-refresh" id="btn-refresh">↻ aggiorna ora</button>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// --- CONFIGURAZIONE FIREBASE -------------------------------------------
+// Compila con i valori del progetto "app-segnalazioni-omnia-roseto"
+// (Console Firebase > Impostazioni progetto > Le tue app > SDK config),
+// gli stessi già usati in Omnia Segnalazioni / diariogiornaliero.html.
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "699028105579",
+  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
+  measurementId: "G-M3PSWKEYCJ"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const NOMI_PUNTI_ORDINE = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
+const EMOJI_BANDIERA = { verde: "badge-verde", giallo: "badge-giallo", rosso: "badge-rosso" };
+const COLORE_HEX = { verde: "#2F9E44", giallo: "#F0B429", rosso: "#E0393E" };
+
+let ultimoStato = null;
+let rilevazioniOggi = [];
+let letturaStazione = null;
+let riepilogoPubbliche = null;
+let mappaRadar = null;
+let livelloRadarAttuale = null;
+let timerAnimazioneRadar = null;
+let framesRadar = [];
+let numeroFrameNowcastRadar = 0;
+let posizioneAnimazioneRadar = 0;
+let hostRadar = "";
+let puntoSelezionato = "roseto_nord";
+let grafico = null;
+
+function dataOggiRoma() {
+  const formattatore = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" });
+  return formattatore.format(new Date());
+}
+
+function oraRoma() {
+  return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(new Date());
+}
+
+// --- BUSSOLA SVG (elemento distintivo: settore garbino evidenziato) -----
+function puntoSulCerchio(cx, cy, raggio, gradi) {
+  const rad = (gradi - 90) * Math.PI / 180;
+  return [cx + raggio * Math.cos(rad), cy + raggio * Math.sin(rad)];
+}
+
+function arcoSettore(cx, cy, raggioInterno, raggioEsterno, gradoInizio, gradoFine) {
+  const [x1, y1] = puntoSulCerchio(cx, cy, raggioEsterno, gradoInizio);
+  const [x2, y2] = puntoSulCerchio(cx, cy, raggioEsterno, gradoFine);
+  const [x3, y3] = puntoSulCerchio(cx, cy, raggioInterno, gradoFine);
+  const [x4, y4] = puntoSulCerchio(cx, cy, raggioInterno, gradoInizio);
+  return `M ${x1} ${y1} A ${raggioEsterno} ${raggioEsterno} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${raggioInterno} ${raggioInterno} 0 0 0 ${x4} ${y4} Z`;
+}
+
+function creaBussola(direzione, rischioGarbino, dimensione = 76) {
+  const cx = dimensione / 2;
+  const cy = dimensione / 2;
+  const raggio = dimensione / 2 - 4;
+  const settoreGarbino = arcoSettore(cx, cy, raggio - 4, raggio, 247, 293);
+
+  let ago = "";
+  if (direzione !== null && direzione !== undefined) {
+    const [puntaX, puntaY] = puntoSulCerchio(cx, cy, raggio - 10, direzione);
+    const coloreAgo = rischioGarbino ? "#E0393E" : "#C99B4A";
+    ago = `<line x1="${cx}" y1="${cy}" x2="${puntaX}" y2="${puntaY}" stroke="${coloreAgo}" stroke-width="2.5" stroke-linecap="round" />
+           <circle cx="${cx}" cy="${cy}" r="3" fill="${coloreAgo}" />`;
+  }
+
+  return `<svg width="${dimensione}" height="${dimensione}" viewBox="0 0 ${dimensione} ${dimensione}">
+    <circle cx="${cx}" cy="${cy}" r="${raggio}" fill="none" stroke="#234653" stroke-width="1.5" />
+    <path d="${settoreGarbino}" fill="#E0393E" opacity="0.55" />
+    <text x="${cx}" y="9" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="middle">N</text>
+    ${ago}
+  </svg>`;
+}
+
+// --- CLASSIFICAZIONE ACCORDO MODELLI -------------------------------------
+function classificaAccordo(spreadNodi) {
+  if (spreadNodi === null || spreadNodi === undefined) return { etichetta: "n/d", colore: "var(--ink-faint)" };
+  if (spreadNodi < 3) return { etichetta: "alto", colore: "var(--flag-verde)" };
+  if (spreadNodi < 7) return { etichetta: "medio", colore: "var(--flag-giallo)" };
+  return { etichetta: "basso", colore: "var(--flag-rosso)" };
+}
+
+function oraCorrente(orario) {
+  if (!orario || !orario.length) return null;
+  const adesso = Date.now();
+  let migliore = orario[0];
+  let distanzaMin = Infinity;
+  for (const o of orario) {
+    const d = Math.abs(new Date(o.ora).getTime() - adesso);
+    if (d < distanzaMin) { distanzaMin = d; migliore = o; }
+  }
+  return migliore;
+}
+
+// --- RENDER CARTE PUNTI ---------------------------------------------------
+function renderPunti(ultimaRilevazione) {
+  const puntiOrdinati = [...ultimaRilevazione.punti].sort(
+    (a, b) => NOMI_PUNTI_ORDINE.indexOf(a.punto) - NOMI_PUNTI_ORDINE.indexOf(b.punto)
+  );
+
+  const bandiera = ultimaRilevazione.bandiera;
+
+  let html = `<div class="griglia-punti">`;
+  for (const p of puntiOrdinati) {
+    const oraAttuale = oraCorrente(p.orario);
+    const oraMareAttuale = p.mare ? oraCorrente(p.mare) : null;
+    const accordo = classificaAccordo(oraAttuale ? oraAttuale.vento_spread_nodi : null);
+    const rischioGarbino = oraAttuale ? oraAttuale.garbino_rischio : false;
+    const classeSelezionata = p.punto === puntoSelezionato ? "selezionata" : "";
+    const t = p.tendenzeMare || {};
+
+    html += `
+      <div class="carta-punto ${classeSelezionata}" data-punto="${p.punto}">
+        <div class="carta-testa">
+          <span class="nome-punto">${p.nome}</span>
+          <span class="badge-bandiera ${EMOJI_BANDIERA[bandiera.colore]}">${bandiera.colore}</span>
+        </div>
+        <div class="corpo-carta">
+          ${creaBussola(oraAttuale ? oraAttuale.direzione_consenso_gradi : null, rischioGarbino)}
+          <div class="letture">
+            <div class="lettura-riga">
+              <span class="lettura-valore mono">${oraAttuale && oraAttuale.vento_consenso_nodi !== null ? oraAttuale.vento_consenso_nodi.toFixed(1) : "—"}</span>
+              <span class="lettura-unita">nodi</span>
+            </div>
+            <div class="lettura-riga">
+              <span class="lettura-valore mono" style="font-size:0.95rem">${oraAttuale && oraAttuale.temperatura_media !== null ? oraAttuale.temperatura_media.toFixed(1) + "°" : "—"}</span>
+            </div>
+            <div class="lettura-riga">
+              <span class="lettura-valore mono" style="font-size:0.8rem; color:var(--ink-muted)">💨 ${oraAttuale && oraAttuale.raffica_max_nodi !== null ? oraAttuale.raffica_max_nodi.toFixed(0) : "—"} kn</span>
+              <span class="lettura-valore mono" style="font-size:0.8rem; color:var(--ink-muted); margin-left:0.5rem">🌧 ${oraAttuale && oraAttuale.probabilita_pioggia_perc !== null ? oraAttuale.probabilita_pioggia_perc + "%" : "—"}</span>
+            </div>
+            <div class="lettura-etichetta" style="color:${accordo.colore}">accordo modelli: ${accordo.etichetta}</div>
+          </div>
+        </div>
+        <div class="riga-mare">
+          <span>🌊 ${oraMareAttuale && oraMareAttuale.altezza_onda_m !== null ? oraMareAttuale.altezza_onda_m.toFixed(1) + " m" : "onde n/d"}${t.ondeInAumento ? " ↑" : ""}</span>
+          <span>🌀 ${oraMareAttuale && oraMareAttuale.corrente_nodi !== null ? oraMareAttuale.corrente_nodi.toFixed(1) + " kn" : "corr. n/d"}${t.correnteInAumento ? " ↑" : ""}</span>
+          <span>〰️ marea${t.mareaInCrescita ? " in crescita ↑" : ""}</span>
+        </div>
+        ${p.punto === "roseto_nord" && letturaStazione ? `
+        <div class="riga-mare" style="color:var(--brass); border-top-color:var(--brass-dim)">
+          <span>📍 stazione: ${letturaStazione.ventoNodi !== null ? letturaStazione.ventoNodi.toFixed(1) + " kn" : "n/d"}${letturaStazione.direzioneGradi !== null ? " · " + letturaStazione.direzioneGradi.toFixed(0) + "°" : ""} (dato reale)</span>
+        </div>` : ""}
+        ${rischioGarbino ? `<div class="avviso-garbino">⚠ garbino — niente gonfiabili in acqua</div>` : ""}
+      </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+// --- RENDER SELETTORE + GRAFICO -------------------------------------------
+function renderSelettoreEGrafico(ultimaRilevazione) {
+  const puntiOrdinati = [...ultimaRilevazione.punti].sort(
+    (a, b) => NOMI_PUNTI_ORDINE.indexOf(a.punto) - NOMI_PUNTI_ORDINE.indexOf(b.punto)
+  );
+
+  let html = `
+    <div class="pannello-grafico">
+      <div class="sezione-titolo">
+        <span>Andamento vento — oggi</span>
+        <div class="selettore-punti" id="selettore-punti">
+          ${puntiOrdinati.map((p) => `<button class="pillola ${p.punto === puntoSelezionato ? "attiva" : ""}" data-punto="${p.punto}">${p.nome}</button>`).join("")}
+        </div>
+      </div>
+      <div class="grafico-contenitore"><canvas id="grafico-vento"></canvas></div>
+      <div class="legenda-grafico">
+        <span class="legenda-voce"><span class="segno-legenda" style="background:#C99B4A"></span>consenso (mediana modelli)</span>
+        <span class="legenda-voce"><span class="segno-legenda" style="background:#4C6870"></span>intervallo min–max tra i modelli</span>
+        <span class="legenda-voce"><span class="segno-legenda" style="background:#E0393E"></span>rischio garbino</span>
+      </div>
+    </div>`;
+  return html;
+}
+
+function disegnaGrafico(puntoId) {
+  const canvas = document.getElementById("grafico-vento");
+  if (!canvas) return;
+
+  const rilevazioniConPunto = rilevazioniOggi
+    .map((r) => {
+      const dati = r.punti.find((p) => p.punto === puntoId);
+      if (!dati) return null;
+      const oraRif = oraCorrente(dati.orario);
+      return { rilevazione: r.rilevazione, oraRif };
+    })
+    .filter(Boolean);
+
+  const etichette = rilevazioniConPunto.map((r) => `${r.rilevazione.slice(0, 2)}:${r.rilevazione.slice(2)}`);
+  const consenso = rilevazioniConPunto.map((r) => r.oraRif ? r.oraRif.vento_consenso_nodi : null);
+  const massimi = rilevazioniConPunto.map((r) => r.oraRif ? r.oraRif.vento_max_nodi : null);
+  const minimi = rilevazioniConPunto.map((r) =>
+    r.oraRif && r.oraRif.vento_max_nodi !== null && r.oraRif.vento_spread_nodi !== null
+      ? r.oraRif.vento_max_nodi - r.oraRif.vento_spread_nodi
+      : null
+  );
+  const coloriPunti = rilevazioniConPunto.map((r) => (r.oraRif && r.oraRif.garbino_rischio ? "#E0393E" : "#C99B4A"));
+
+  if (grafico) grafico.destroy();
+
+  grafico = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: etichette,
+      datasets: [
+        {
+          label: "Massimo",
+          data: massimi,
+          borderWidth: 0,
+          pointRadius: 0,
+          fill: "+1",
+          backgroundColor: "rgba(76, 104, 112, 0.25)",
+          tension: 0.3,
+        },
+        {
+          label: "Minimo",
+          data: minimi,
+          borderWidth: 0,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3,
+        },
+        {
+          label: "Consenso",
+          data: consenso,
+          borderColor: "#C99B4A",
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: coloriPunti,
+          pointBorderWidth: 0,
+          fill: false,
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#7FA0A8", font: { family: "IBM Plex Mono", size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: "#1A3641" } },
+        y: { ticks: { color: "#7FA0A8", font: { family: "IBM Plex Mono", size: 10 } }, grid: { color: "#1A3641" }, title: { display: true, text: "nodi", color: "#7FA0A8", font: { size: 10 } } },
+      },
+    },
+  });
+}
+
+function renderBannerEventi(eventi, tendenzeMare) {
+  let righe = "";
+  if (eventi && eventi.pioggiaInArrivo) {
+    righe += `<div class="banner-riga">🌧 Pioggia in arrivo — probabilità fino al ${eventi.probabilitaPioggiaMaxPerc}% nelle prossime ore.</div>`;
+  }
+  if (eventi && eventi.raffichaInArrivo) {
+    righe += `<div class="banner-riga">💨 Raffiche in arrivo — fino a ${eventi.rafficaMaxProssimeOreNodi.toFixed(0)} nodi nelle prossime ore.</div>`;
+  }
+  if (tendenzeMare && tendenzeMare.ondeInAumento) {
+    righe += `<div class="banner-riga">🌊 Onde in aumento — +${tendenzeMare.deltaOndeM.toFixed(1)} m nelle prossime ore.</div>`;
+  }
+  if (tendenzeMare && tendenzeMare.correnteInAumento) {
+    righe += `<div class="banner-riga">🌀 Corrente in aumento — +${tendenzeMare.deltaCorrenteNodi.toFixed(1)} nodi nelle prossime ore.</div>`;
+  }
+  if (tendenzeMare && tendenzeMare.mareaInCrescita) {
+    righe += `<div class="banner-riga">〰️ Marea in crescita — +${tendenzeMare.deltaMareaM.toFixed(2)} m nelle prossime ore.</div>`;
+  }
+  return righe ? `<div class="banner-eventi">${righe}</div>` : "";
+}
+
+function urlImmagineSatellite() {
+  // EUMETView WMS — pubblico, nessuna registrazione richiesta.
+  // Layer di partenza: msg_fes:rgb_airmass (RGB Airmass, buono per vedere
+  // sistemi nuvolosi e fronti in arrivo). Verifica/cambia il nome del layer
+  // dalla pagina di anteprima: https://view.eumetsat.int/geoserver/web/wicket/bookmarkable/org.geoserver.web.demo.MapPreviewPage
+  const bbox = "12.5,41.5,16.0,44.0"; // lon_min,lat_min,lon_max,lat_max — Adriatico centrale
+  const params = new URLSearchParams({
+    service: "WMS",
+    version: "1.1.1",
+    request: "GetMap",
+    layers: "msg_fes:rgb_airmass",
+    bbox,
+    width: "700",
+    height: "500",
+    srs: "EPSG:4326",
+    format: "image/png",
+  });
+  return `https://view.eumetsat.int/geoserver/wms?${params.toString()}`;
+}
+
+function renderPannelloSatellite() {
+  const rp = riepilogoPubbliche;
+  const rigaComunitaria = rp
+    ? `<p class="satellite-nota" style="color:var(--ink-muted); margin-top:0.9rem; padding-top:0.7rem; border-top:1px solid var(--line);">
+        📡 Rete Netatmo pubblica in zona: ${rp.numeroStazioniTotali} stazioni attive (${rp.numeroStazioniConVento} con anemometro) ·
+        ${rp.temperaturaMedianaC !== null ? "temp. mediana " + rp.temperaturaMedianaC.toFixed(1) + "°C" : ""}
+        ${rp.ventoMedianaNodi !== null ? " · vento mediano " + rp.ventoMedianaNodi.toFixed(1) + " kn" : ""}
+        — dato di contesto, non usato per gli alert di sicurezza.
+      </p>`
+    : "";
+
+  return `
+    <div class="pannello-satellite">
+      <div class="sezione-titolo">
+        <span>Satellite — Adriatico centrale</span>
+        <a href="osservazione-manuale.html" style="color:var(--brass); font-size:0.72rem; text-decoration:none;">+ osservazione manuale</a>
+      </div>
+      <img class="satellite-immagine" src="${urlImmagineSatellite()}" alt="Immagine satellitare EUMETSAT dell'Adriatico centrale" loading="lazy" />
+      <p class="satellite-nota">EUMETView (EUMETSAT), layer RGB Airmass — aggiornamento ogni 15 min circa. Se l'immagine non si carica, il nome del layer potrebbe essere cambiato: verifica dalla pagina di anteprima del servizio.</p>
+      ${rigaComunitaria}
+    </div>`;
+}
+
+// --- ORCHESTRAZIONE --------------------------------------------------------
+function renderTutto() {
+  const contenuto = document.getElementById("contenuto");
+  if (!ultimoStato) {
+    contenuto.innerHTML = `<div class="messaggio-stato">In attesa della prima rilevazione (le rilevazioni partono ogni giorno dalle 05:00).</div>`;
+    return;
+  }
+
+  contenuto.innerHTML =
+    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare) +
+    renderPunti(ultimoStato) +
+    renderSelettoreEGrafico(ultimoStato) +
+    `<div class="pannello-radar">
+      <div class="sezione-titolo"><span>Radar pioggia — Ascoli → costa, con nowcast</span></div>
+      <div id="mappa-radar"></div>
+      <div class="radar-controlli">
+        <button class="radar-bottone" id="radar-prev">‹</button>
+        <button class="radar-bottone" id="radar-play">▶</button>
+        <button class="radar-bottone" id="radar-next">›</button>
+        <span class="radar-tempo" id="radar-tempo">caricamento radar...</span>
+      </div>
+      <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Utile per capire se un fronte visto verso Ascoli si sta muovendo verso la costa, non sostituisce l'ensemble per previsioni oltre l'ora.</p>
+    </div>` +
+    renderPannelloSatellite();
+
+  inizializzaRadar();
+
+  document.querySelectorAll("[data-punto]").forEach((el) => {
+    el.addEventListener("click", () => {
+      puntoSelezionato = el.getAttribute("data-punto");
+      renderTutto();
+    });
+  });
+
+  disegnaGrafico(puntoSelezionato);
+}
+
+async function caricaDati() {
+  const oggi = dataOggiRoma();
+
+  try {
+    const docOggi = await getDoc(doc(db, "meteoGiornaliero", oggi));
+    if (docOggi.exists() && docOggi.data().ultimaRilevazione) {
+      ultimoStato = docOggi.data().ultimaRilevazione;
+    }
+
+    // Nessun orderBy (per evitare indici composti): leggiamo e ordiniamo lato client.
+    const rilevazioniSnap = await getDocs(
+      query(collection(db, "meteoGiornaliero", oggi, "rilevazioni"), limit(500))
+    );
+    rilevazioniOggi = rilevazioniSnap.docs
+      .map((d) => d.data())
+      .sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
+
+    document.getElementById("testo-live").textContent = `aggiornato alle ${oraRoma()}`;
+    document.getElementById("footer-info").textContent = `${rilevazioniOggi.length} rilevazioni oggi · dati Open-Meteo (ensemble 5 modelli)`;
+
+    try {
+      const docStazione = await getDoc(doc(db, "stazioneLocale", "roseto_nord"));
+      letturaStazione = docStazione.exists() ? docStazione.data().ultimaLettura : null;
+    } catch (e) {
+      letturaStazione = null;
+    }
+
+    try {
+      const docPubbliche = await getDoc(doc(db, "stazioniPubblicheNetatmo", oggi));
+      riepilogoPubbliche = docPubbliche.exists() ? docPubbliche.data().ultimoRiepilogo : null;
+    } catch (e) {
+      riepilogoPubbliche = null;
+    }
+  } catch (errore) {
+    console.error(errore);
+    document.getElementById("testo-live").textContent = "errore di connessione";
+    document.getElementById("pallino-live").style.background = "#E0393E";
+  }
+
+  renderTutto();
+}
+
+// --- RADAR PIOGGIA (RainViewer) --------------------------------------------
+function formattaOrarioRadar(timestampUnix) {
+  return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(new Date(timestampUnix * 1000));
+}
+
+function mostraFrameRadar(indice) {
+  if (!mappaRadar || !framesRadar[indice]) return;
+  posizioneAnimazioneRadar = indice;
+  const frame = framesRadar[indice];
+
+  if (livelloRadarAttuale) mappaRadar.removeLayer(livelloRadarAttuale);
+  livelloRadarAttuale = L.tileLayer(`${hostRadar}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.75, zIndex: 5 });
+  livelloRadarAttuale.addTo(mappaRadar);
+
+  const eFuturo = indice >= framesRadar.length - numeroFrameNowcastRadar;
+  const etichetta = eFuturo ? "nowcast" : "osservato";
+  const testoTempo = document.getElementById("radar-tempo");
+  if (testoTempo) {
+    testoTempo.innerHTML = `${formattaOrarioRadar(frame.time)} <span class="${eFuturo ? "futuro" : ""}">(${etichetta})</span>`;
+  }
+}
+
+function spostaFrameRadar(delta) {
+  let nuovaPosizione = posizioneAnimazioneRadar + delta;
+  if (nuovaPosizione < 0) nuovaPosizione = framesRadar.length - 1;
+  if (nuovaPosizione >= framesRadar.length) nuovaPosizione = 0;
+  mostraFrameRadar(nuovaPosizione);
+}
+
+function fermaAnimazioneRadar() {
+  if (timerAnimazioneRadar) {
+    clearInterval(timerAnimazioneRadar);
+    timerAnimazioneRadar = null;
+    const bottone = document.getElementById("radar-play");
+    if (bottone) bottone.textContent = "▶";
+  }
+}
+
+function alternaAnimazioneRadar() {
+  if (timerAnimazioneRadar) {
+    fermaAnimazioneRadar();
+  } else {
+    const bottone = document.getElementById("radar-play");
+    if (bottone) bottone.textContent = "⏸";
+    timerAnimazioneRadar = setInterval(() => spostaFrameRadar(1), 600);
+  }
+}
+
+function inizializzaRadar() {
+  fermaAnimazioneRadar();
+  if (mappaRadar) { mappaRadar.remove(); mappaRadar = null; }
+
+  const contenitore = document.getElementById("mappa-radar");
+  if (!contenitore || typeof L === "undefined") return;
+
+  mappaRadar = L.map("mappa-radar", { zoomControl: false, attributionControl: false }).setView([42.75, 13.8], 8);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 12 }).addTo(mappaRadar);
+  L.circleMarker([42.85, 13.57], { radius: 5, color: "#C99B4A" }).addTo(mappaRadar).bindTooltip("Ascoli Piceno", { permanent: true, direction: "top", className: "mono" });
+  L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadar).bindTooltip("Roseto/Pineto", { permanent: true, direction: "bottom", className: "mono" });
+
+  fetch("https://api.rainviewer.com/public/weather-maps.json")
+    .then((r) => r.json())
+    .then((dati) => {
+      hostRadar = dati.host;
+      const passati = dati.radar?.past || [];
+      const nowcast = dati.radar?.nowcast || [];
+      framesRadar = [...passati, ...nowcast];
+      numeroFrameNowcastRadar = nowcast.length;
+      mostraFrameRadar(passati.length > 0 ? passati.length - 1 : 0);
+    })
+    .catch(() => {
+      const testoTempo = document.getElementById("radar-tempo");
+      if (testoTempo) testoTempo.textContent = "radar non disponibile al momento";
+    });
+
+  document.getElementById("radar-play")?.addEventListener("click", alternaAnimazioneRadar);
+  document.getElementById("radar-prev")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(-1); });
+  document.getElementById("radar-next")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(1); });
+}
+
+document.getElementById("btn-refresh").addEventListener("click", caricaDati);
+
+caricaDati();
+setInterval(caricaDati, 5 * 60 * 1000);
+</script>
+
+</body>
+</html>
