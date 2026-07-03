@@ -845,7 +845,7 @@ function mostraFrameRadar(indice) {
   const frame = framesRadar[indice];
 
   if (livelloRadarAttuale) mappaRadar.removeLayer(livelloRadarAttuale);
-  livelloRadarAttuale = L.tileLayer(`${hostRadar}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.75, zIndex: 5 });
+  livelloRadarAttuale = L.tileLayer(`${hostRadar}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.75, zIndex: 5, maxNativeZoom: 7 });
   livelloRadarAttuale.addTo(mappaRadar);
 
   const eFuturo = indice >= framesRadar.length - numeroFrameNowcastRadar;
@@ -889,8 +889,8 @@ function inizializzaRadar() {
   const contenitore = document.getElementById("mappa-radar");
   if (!contenitore || typeof L === "undefined") return;
 
-  mappaRadar = L.map("mappa-radar", { zoomControl: false, attributionControl: false }).setView([42.75, 13.8], 8);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 12, className: "livello-mappa-scuro" }).addTo(mappaRadar);
+  mappaRadar = L.map("mappa-radar", { zoomControl: false, attributionControl: false, maxZoom: 7, minZoom: 6 }).setView([42.75, 13.8], 7);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 7, className: "livello-mappa-scuro" }).addTo(mappaRadar);
   L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadar).bindTooltip("Roseto/Pineto", { permanent: true, direction: "bottom", className: "mono" });
 
   fetch("https://api.rainviewer.com/public/weather-maps.json")
