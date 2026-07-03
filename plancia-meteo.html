@@ -432,16 +432,13 @@ import { getFirestore, doc, getDoc, collection, getDocs, query, limit } from "ht
 // Compila con i valori del progetto "app-segnalazioni-omnia-roseto"
 // (Console Firebase > Impostazioni progetto > Le tue app > SDK config),
 // gli stessi già usati in Omnia Segnalazioni / diariogiornaliero.html.
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  apiKey: "INSERISCI_API_KEY",
   authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
-  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "app-segnalazioni-omnia-roseto",
   storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
-  messagingSenderId: "699028105579",
-  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
-  measurementId: "G-M3PSWKEYCJ"
+  messagingSenderId: "INSERISCI_SENDER_ID",
+  appId: "INSERISCI_APP_ID",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -462,6 +459,7 @@ let framesRadar = [];
 let numeroFrameNowcastRadar = 0;
 let posizioneAnimazioneRadar = 0;
 let hostRadar = "";
+let layerSatelliteSelezionato = "rgb_airmass";
 let puntoSelezionato = "roseto_nord";
 let grafico = null;
 
@@ -703,17 +701,14 @@ function renderBannerEventi(eventi, tendenzeMare) {
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
 }
 
-function urlImmagineSatellite() {
+function urlImmagineSatellite(layer) {
   // EUMETView WMS — pubblico, nessuna registrazione richiesta.
-  // Layer di partenza: msg_fes:rgb_airmass (RGB Airmass, buono per vedere
-  // sistemi nuvolosi e fronti in arrivo). Verifica/cambia il nome del layer
-  // dalla pagina di anteprima: https://view.eumetsat.int/geoserver/web/wicket/bookmarkable/org.geoserver.web.demo.MapPreviewPage
   const bbox = "12.5,41.5,16.0,44.0"; // lon_min,lat_min,lon_max,lat_max — Adriatico centrale
   const params = new URLSearchParams({
     service: "WMS",
     version: "1.1.1",
     request: "GetMap",
-    layers: "msg_fes:rgb_airmass",
+    layers: `msg_fes:${layer}`,
     bbox,
     width: "700",
     height: "500",
@@ -722,6 +717,11 @@ function urlImmagineSatellite() {
   });
   return `https://view.eumetsat.int/geoserver/wms?${params.toString()}`;
 }
+
+const LAYER_SATELLITE = [
+  { id: "rgb_airmass", nome: "Airmass", nota: "Masse d'aria e dinamica dei fronti — lettura tecnica, non colori naturali." },
+  { id: "rgb_naturalcolor", nome: "Naturale", nota: "Colori naturali, nuvole bianche riconoscibili a colpo d'occhio." },
+];
 
 function renderPannelloSatellite() {
   const rp = riepilogoPubbliche;
@@ -734,14 +734,19 @@ function renderPannelloSatellite() {
       </p>`
     : "";
 
+  const layerAttuale = LAYER_SATELLITE.find((l) => l.id === layerSatelliteSelezionato) || LAYER_SATELLITE[0];
+
   return `
     <div class="pannello-satellite">
       <div class="sezione-titolo">
         <span>Satellite — Adriatico centrale</span>
         <a href="osservazione-manuale.html" style="color:var(--brass); font-size:0.72rem; text-decoration:none;">+ osservazione manuale</a>
       </div>
-      <img class="satellite-immagine" src="${urlImmagineSatellite()}" alt="Immagine satellitare EUMETSAT dell'Adriatico centrale" loading="lazy" />
-      <p class="satellite-nota">EUMETView (EUMETSAT), layer RGB Airmass — aggiornamento ogni 15 min circa. Se l'immagine non si carica, il nome del layer potrebbe essere cambiato: verifica dalla pagina di anteprima del servizio.</p>
+      <div class="selettore-punti" id="selettore-satellite" style="margin-bottom:0.7rem;">
+        ${LAYER_SATELLITE.map((l) => `<button class="pillola ${l.id === layerSatelliteSelezionato ? "attiva" : ""}" data-layer="${l.id}">${l.nome}</button>`).join("")}
+      </div>
+      <img class="satellite-immagine" id="immagine-satellite" src="${urlImmagineSatellite(layerAttuale.id)}" alt="Immagine satellitare EUMETSAT dell'Adriatico centrale" loading="lazy" />
+      <p class="satellite-nota">EUMETView (EUMETSAT) — aggiornamento ogni 15 min circa. ${layerAttuale.nota}</p>
       ${rigaComunitaria}
     </div>`;
 }
@@ -903,6 +908,18 @@ function inizializzaRadar() {
   document.getElementById("radar-play")?.addEventListener("click", alternaAnimazioneRadar);
   document.getElementById("radar-prev")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(-1); });
   document.getElementById("radar-next")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(1); });
+
+  document.querySelectorAll("#selettore-satellite [data-layer]").forEach((el) => {
+    el.addEventListener("click", () => {
+      layerSatelliteSelezionato = el.getAttribute("data-layer");
+      document.querySelectorAll("#selettore-satellite [data-layer]").forEach((b) => b.classList.remove("attiva"));
+      el.classList.add("attiva");
+      const layerInfo = LAYER_SATELLITE.find((l) => l.id === layerSatelliteSelezionato);
+      document.getElementById("immagine-satellite").src = urlImmagineSatellite(layerSatelliteSelezionato);
+      document.querySelector(".pannello-satellite .satellite-nota").textContent =
+        `EUMETView (EUMETSAT) — aggiornamento ogni 15 min circa. ${layerInfo.nota}`;
+    });
+  });
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
