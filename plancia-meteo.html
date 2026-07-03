@@ -724,7 +724,6 @@ function urlImmagineSatellite(layer) {
 
 const LAYER_SATELLITE = [
   { id: "rgb_airmass", nome: "Airmass", nota: "Masse d'aria e dinamica dei fronti — lettura tecnica, non colori naturali." },
-  { id: "rgb_natural", nome: "Naturale", nota: "Colori naturali, nuvole bianche riconoscibili a colpo d'occhio." },
 ];
 
 function renderPannelloSatellite() {
@@ -746,9 +745,9 @@ function renderPannelloSatellite() {
         <span>Satellite — Adriatico centrale</span>
         <a href="osservazione-manuale.html" style="color:var(--brass); font-size:0.72rem; text-decoration:none;">+ osservazione manuale</a>
       </div>
-      <div class="selettore-punti" id="selettore-satellite" style="margin-bottom:0.7rem;">
+      ${LAYER_SATELLITE.length > 1 ? `<div class="selettore-punti" id="selettore-satellite" style="margin-bottom:0.7rem;">
         ${LAYER_SATELLITE.map((l) => `<button class="pillola ${l.id === layerSatelliteSelezionato ? "attiva" : ""}" data-layer="${l.id}">${l.nome}</button>`).join("")}
-      </div>
+      </div>` : ""}
       <img class="satellite-immagine" id="immagine-satellite" src="${urlImmagineSatellite(layerAttuale.id)}" alt="Immagine satellitare EUMETSAT dell'Adriatico centrale" loading="lazy" />
       <p class="satellite-nota">EUMETView (EUMETSAT) — aggiornamento ogni 15 min circa. ${layerAttuale.nota}</p>
       ${rigaComunitaria}
