@@ -342,6 +342,10 @@
 
   .radar-tempo .futuro { color: var(--brass); }
 
+  .livello-mappa-scuro {
+    filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
+  }
+
   .grafico-contenitore {
     position: relative;
     height: 230px;
@@ -720,7 +724,7 @@ function urlImmagineSatellite(layer) {
 
 const LAYER_SATELLITE = [
   { id: "rgb_airmass", nome: "Airmass", nota: "Masse d'aria e dinamica dei fronti — lettura tecnica, non colori naturali." },
-  { id: "rgb_naturalcolor", nome: "Naturale", nota: "Colori naturali, nuvole bianche riconoscibili a colpo d'occhio." },
+  { id: "rgb_natural", nome: "Naturale", nota: "Colori naturali, nuvole bianche riconoscibili a colpo d'occhio." },
 ];
 
 function renderPannelloSatellite() {
@@ -886,8 +890,7 @@ function inizializzaRadar() {
   if (!contenitore || typeof L === "undefined") return;
 
   mappaRadar = L.map("mappa-radar", { zoomControl: false, attributionControl: false }).setView([42.75, 13.8], 8);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 12 }).addTo(mappaRadar);
-  L.circleMarker([42.85, 13.57], { radius: 5, color: "#C99B4A" }).addTo(mappaRadar).bindTooltip("Ascoli Piceno", { permanent: true, direction: "top", className: "mono" });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 12, className: "livello-mappa-scuro" }).addTo(mappaRadar);
   L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadar).bindTooltip("Roseto/Pineto", { permanent: true, direction: "bottom", className: "mono" });
 
   fetch("https://api.rainviewer.com/public/weather-maps.json")
