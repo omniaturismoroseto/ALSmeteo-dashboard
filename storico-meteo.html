@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storico — Omnia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-abyss: #0A1C24; --bg-panel: #0F2733; --bg-panel-raised: #163542;
+    --ink: #E8F0EE; --ink-muted: #7FA0A8; --ink-faint: #4C6870;
+    --brass: #C99B4A; --brass-dim: #8C6E3B; --line: #234653;
+    --flag-verde: #2F9E44; --flag-giallo: #F0B429; --flag-rosso: #E0393E;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg-abyss); color: var(--ink); font-family: 'Space Grotesk', sans-serif; padding: 0 0 3rem; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  header { padding: 1.5rem 1.25rem 1.25rem; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
+  h1 span { color: var(--brass); }
+  p.sottotitolo { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--ink-muted); }
+  a.link-plancia { color: var(--brass); font-size: 0.78rem; text-decoration: none; }
+  main { max-width: 1000px; margin: 0 auto; padding: 1.5rem 1.25rem 0; }
+  .messaggio-stato { padding: 2rem 1rem; text-align: center; color: var(--ink-muted); font-size: 0.85rem; }
+
+  .pannello { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1rem; margin-bottom: 1.5rem; }
+  .sezione-titolo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); margin: 0 0 0.85rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th { text-align: left; color: var(--ink-faint); text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.04em; font-weight: 500; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--line); }
+  td { padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  tr.riga-giorno { cursor: pointer; }
+  tr.riga-giorno:hover td { background: var(--bg-panel-raised); }
+  tr.selezionata td { background: var(--bg-panel-raised); }
+
+  .badge-bandiera { font-size: 0.62rem; font-family: 'IBM Plex Mono', monospace; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .badge-verde { background: #163C24; color: var(--flag-verde); }
+  .badge-giallo { background: #3D2F0C; color: var(--flag-giallo); }
+  .badge-rosso { background: #3D1416; color: var(--flag-rosso); }
+
+  .selettore-punti { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+  .pillola { background: var(--bg-panel); border: 1px solid var(--line); color: var(--ink-muted); font-family: 'Space Grotesk', sans-serif; font-size: 0.72rem; padding: 0.35rem 0.7rem; border-radius: 20px; cursor: pointer; }
+  .pillola.attiva { border-color: var(--brass); color: var(--brass); background: var(--bg-panel-raised); }
+
+  .grafico-contenitore { position: relative; height: 220px; margin-top: 0.6rem; }
+
+  .log-eventi { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+  .voce-log { font-size: 0.78rem; padding: 0.5rem 0.7rem; border-radius: 6px; background: var(--bg-panel-raised); border-left: 3px solid var(--brass-dim); }
+  .voce-log .ora-log { color: var(--brass); font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; margin-right: 0.5rem; }
+
+  input[type="date"] {
+    background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; padding: 0.5rem 0.7rem; border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Storico <span>Omnia</span></h1>
+  <p class="sottotitolo">Ultimi giorni e dettaglio orario — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
+</header>
+
+<main>
+  <div class="pannello">
+    <div class="sezione-titolo">Ultimi 7 giorni</div>
+    <div id="tabella-settimana"><div class="messaggio-stato">Caricamento...</div></div>
+  </div>
+
+  <div class="pannello">
+    <div class="sezione-titolo" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Dettaglio giorno</span>
+      <input type="date" id="selettore-data">
+    </div>
+    <div id="dettaglio-giorno"><div class="messaggio-stato">Seleziona un giorno dalla tabella sopra, o scegli una data.</div></div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Stessa configurazione usata negli altri file della plancia.
+const firebaseConfig = {
+  apiKey: "INSERISCI_API_KEY",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "INSERISCI_SENDER_ID",
+  appId: "INSERISCI_APP_ID",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const NOMI_PUNTI_ORDINE = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
+const LIVELLI_BANDIERA = { verde: 0, giallo: 1, rosso: 2 };
+const EMOJI_BANDIERA = { verde: "badge-verde", giallo: "badge-giallo", rosso: "badge-rosso" };
+
+let puntoSelezionatoDettaglio = "roseto_nord";
+let rilevazioniGiornoCorrente = [];
+let graficoDettaglio = null;
+
+function dataOggiRoma() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function ultimiNGiorni(n) {
+  const giorni = [];
+  const oggi = new Date(`${dataOggiRoma()}T12:00:00Z`);
+  for (let i = 0; i < n; i++) {
+    const d = new Date(oggi);
+    d.setUTCDate(d.getUTCDate() - i);
+    giorni.push(d.toISOString().split("T")[0]);
+  }
+  return giorni;
+}
+
+async function caricaRilevazioniGiorno(data) {
+  const snap = await getDocs(query(collection(db, "meteoGiornaliero", data, "rilevazioni"), limit(500)));
+  return snap.docs.map((d) => d.data()).sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
+}
+
+function formattaDataLeggibile(data) {
+  const [anno, mese, giorno] = data.split("-");
+  return `${giorno}/${mese}`;
+}
+
+// --- RIEPILOGO SETTIMANALE ------------------------------------------------
+async function caricaRiepilogoSettimana() {
+  const giorni = ultimiNGiorni(7);
+  const righe = [];
+
+  for (const data of giorni) {
+    const rilevazioni = await caricaRilevazioniGiorno(data);
+    if (rilevazioni.length === 0) {
+      righe.push({ data, senzaDati: true });
+      continue;
+    }
+
+    let bandieraPeggiore = { colore: "verde" };
+    let ventoMax = 0;
+    let garbinoRilevato = false;
+    let fronteRilevato = false;
+
+    for (const r of rilevazioni) {
+      if (r.bandiera && LIVELLI_BANDIERA[r.bandiera.colore] > LIVELLI_BANDIERA[bandieraPeggiore.colore]) {
+        bandieraPeggiore = r.bandiera;
+      }
+      if (r.bandiera && r.bandiera.garbinoRilevato) garbinoRilevato = true;
+      if (r.ventoConsensoMax !== null && r.ventoConsensoMax !== undefined && r.ventoConsensoMax > ventoMax) {
+        ventoMax = r.ventoConsensoMax;
+      }
+      if (r.fronti && r.fronti.length > 0) fronteRilevato = true;
+    }
+
+    righe.push({ data, senzaDati: false, bandieraPeggiore, ventoMax, garbinoRilevato, fronteRilevato, numeroRilevazioni: rilevazioni.length });
+  }
+
+  const contenitore = document.getElementById("tabella-settimana");
+  contenitore.innerHTML = `
+    <table>
+      <thead><tr><th>Giorno</th><th>Bandiera peggiore</th><th>Vento max</th><th>Garbino</th><th>Fronti</th><th>Rilevazioni</th></tr></thead>
+      <tbody>
+        ${righe.map((r) => r.senzaDati
+          ? `<tr><td class="mono">${formattaDataLeggibile(r.data)}</td><td colspan="5" style="color:var(--ink-faint)">nessun dato</td></tr>`
+          : `<tr class="riga-giorno" data-data="${r.data}">
+              <td class="mono">${formattaDataLeggibile(r.data)}</td>
+              <td><span class="badge-bandiera ${EMOJI_BANDIERA[r.bandieraPeggiore.colore]}">${r.bandieraPeggiore.colore}</span></td>
+              <td class="mono">${r.ventoMax.toFixed(1)} kn</td>
+              <td>${r.garbinoRilevato ? "⚠️ sì" : "—"}</td>
+              <td>${r.fronteRilevato ? "🌩️ sì" : "—"}</td>
+              <td class="mono" style="color:var(--ink-faint)">${r.numeroRilevazioni}</td>
+            </tr>`
+        ).join("")}
+      </tbody>
+    </table>`;
+
+  document.querySelectorAll(".riga-giorno").forEach((riga) => {
+    riga.addEventListener("click", () => {
+      const data = riga.getAttribute("data-data");
+      document.getElementById("selettore-data").value = data;
+      caricaDettaglioGiorno(data);
+      document.querySelectorAll(".riga-giorno").forEach((r) => r.classList.remove("selezionata"));
+      riga.classList.add("selezionata");
+    });
+  });
+}
+
+// --- DETTAGLIO GIORNO ------------------------------------------------------
+function trovaOraPerPunto(rilevazione, puntoId) {
+  return rilevazione.punti.find((p) => p.punto === puntoId);
+}
+
+function costruisciLogEventi(rilevazioni) {
+  const log = [];
+  for (let i = 1; i < rilevazioni.length; i++) {
+    const prec = rilevazioni[i - 1];
+    const att = rilevazioni[i];
+    const ora = `${att.rilevazione.slice(0, 2)}:${att.rilevazione.slice(2)}`;
+
+    if (prec.bandiera && att.bandiera && LIVELLI_BANDIERA[att.bandiera.colore] > LIVELLI_BANDIERA[prec.bandiera.colore]) {
+      log.push(`${ora} — Bandiera passata a ${att.bandiera.colore.toUpperCase()}: ${att.bandiera.motivo}`);
+    }
+    if (prec.eventi && att.eventi) {
+      if (att.eventi.pioggiaInArrivo && !prec.eventi.pioggiaInArrivo) log.push(`${ora} — Pioggia in arrivo rilevata (${att.eventi.probabilitaPioggiaMaxPerc}%).`);
+      if (att.eventi.raffichaInArrivo && !prec.eventi.raffichaInArrivo) log.push(`${ora} — Raffiche in arrivo rilevate (${att.eventi.rafficaMaxProssimeOreNodi.toFixed(0)} kn).`);
+    }
+    if (att.fronti && att.fronti.length > 0) {
+      const direzioniPrec = new Set((prec.fronti || []).map((f) => f.direzione));
+      att.fronti.filter((f) => !direzioniPrec.has(f.direzione)).forEach((f) => {
+        log.push(`${ora} — Fronte in avvicinamento da ${f.direzione}.`);
+      });
+    }
+  }
+  return log;
+}
+
+function disegnaGraficoStorico(puntoId) {
+  const canvas = document.getElementById("grafico-storico");
+  if (!canvas) return;
+
+  const puntiDati = rilevazioniGiornoCorrente
+    .map((r) => ({ rilevazione: r.rilevazione, ora: trovaOraPerPunto(r, puntoId) }))
+    .filter((r) => r.ora);
+
+  const etichette = puntiDati.map((r) => `${r.rilevazione.slice(0, 2)}:${r.rilevazione.slice(2)}`);
+  const consenso = puntiDati.map((r) => r.ora.vento_consenso_nodi);
+  const massimi = puntiDati.map((r) => r.ora.vento_max_nodi);
+  const minimi = puntiDati.map((r) => r.ora.vento_max_nodi !== null && r.ora.vento_spread_nodi !== null ? r.ora.vento_max_nodi - r.ora.vento_spread_nodi : null);
+  const coloriPunti = puntiDati.map((r) => (r.ora.garbino_rischio ? "#E0393E" : "#C99B4A"));
+
+  if (graficoDettaglio) graficoDettaglio.destroy();
+
+  graficoDettaglio = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: etichette,
+      datasets: [
+        { label: "Massimo", data: massimi, borderWidth: 0, pointRadius: 0, fill: "+1", backgroundColor: "rgba(76, 104, 112, 0.25)", tension: 0.3 },
+        { label: "Minimo", data: minimi, borderWidth: 0, pointRadius: 0, fill: false, tension: 0.3 },
+        { label: "Consenso", data: consenso, borderColor: "#C99B4A", borderWidth: 2, pointRadius: 3, pointBackgroundColor: coloriPunti, pointBorderWidth: 0, fill: false, tension: 0.3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#7FA0A8", font: { family: "IBM Plex Mono", size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: "#1A3641" } },
+        y: { ticks: { color: "#7FA0A8", font: { family: "IBM Plex Mono", size: 10 } }, grid: { color: "#1A3641" }, title: { display: true, text: "nodi", color: "#7FA0A8", font: { size: 10 } } },
+      },
+    },
+  });
+}
+
+async function caricaDettaglioGiorno(data) {
+  const contenitore = document.getElementById("dettaglio-giorno");
+  contenitore.innerHTML = `<div class="messaggio-stato">Caricamento ${data}...</div>`;
+
+  rilevazioniGiornoCorrente = await caricaRilevazioniGiorno(data);
+  if (rilevazioniGiornoCorrente.length === 0) {
+    contenitore.innerHTML = `<div class="messaggio-stato">Nessuna rilevazione per questo giorno.</div>`;
+    return;
+  }
+
+  const puntiDisponibili = rilevazioniGiornoCorrente[0].punti.map((p) => p.punto).sort((a, b) => NOMI_PUNTI_ORDINE.indexOf(a) - NOMI_PUNTI_ORDINE.indexOf(b));
+  const nomiPunti = Object.fromEntries(rilevazioniGiornoCorrente[0].punti.map((p) => [p.punto, p.nome]));
+  const logEventi = costruisciLogEventi(rilevazioniGiornoCorrente);
+
+  contenitore.innerHTML = `
+    <div class="selettore-punti" id="selettore-punti-storico">
+      ${puntiDisponibili.map((p) => `<button class="pillola ${p === puntoSelezionatoDettaglio ? "attiva" : ""}" data-punto="${p}">${nomiPunti[p]}</button>`).join("")}
+    </div>
+    <div class="grafico-contenitore"><canvas id="grafico-storico"></canvas></div>
+    <div class="sezione-titolo" style="margin-top:1.3rem;">Log eventi della giornata</div>
+    <div class="log-eventi">
+      ${logEventi.length > 0
+        ? logEventi.map((voce) => {
+            const [ora, ...resto] = voce.split(" — ");
+            return `<div class="voce-log"><span class="ora-log">${ora}</span>${resto.join(" — ")}</div>`;
+          }).join("")
+        : `<div class="messaggio-stato" style="padding:1rem;">Nessun cambio di stato registrato in questa giornata.</div>`}
+    </div>`;
+
+  document.querySelectorAll("#selettore-punti-storico [data-punto]").forEach((el) => {
+    el.addEventListener("click", () => {
+      puntoSelezionatoDettaglio = el.getAttribute("data-punto");
+      document.querySelectorAll("#selettore-punti-storico [data-punto]").forEach((b) => b.classList.remove("attiva"));
+      el.classList.add("attiva");
+      disegnaGraficoStorico(puntoSelezionatoDettaglio);
+    });
+  });
+
+  disegnaGraficoStorico(puntoSelezionatoDettaglio);
+}
+
+document.getElementById("selettore-data").addEventListener("change", (evento) => {
+  if (evento.target.value) caricaDettaglioGiorno(evento.target.value);
+});
+
+// Precompila il selettore data con ieri, e carica tutto all'avvio.
+const ieriData = ultimiNGiorni(2)[1];
+document.getElementById("selettore-data").value = ieriData;
+caricaRiepilogoSettimana();
+caricaDettaglioGiorno(ieriData);
+</script>
+
+</body>
+</html>

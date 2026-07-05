@@ -769,6 +769,7 @@ function renderPannelloSatellite() {
         <span>Satellite — Adriatico centrale</span>
         <a href="osservazione-manuale.html" style="color:var(--brass); font-size:0.72rem; text-decoration:none;">+ osservazione manuale</a>
         <a href="calibrazione-meteo.html" style="color:var(--brass); font-size:0.72rem; text-decoration:none; margin-left:0.9rem;">📊 calibrazione</a>
+        <a href="storico-meteo.html" style="color:var(--brass); font-size:0.72rem; text-decoration:none; margin-left:0.9rem;">📅 storico</a>
       </div>
       ${LAYER_SATELLITE.length > 1 ? `<div class="selettore-punti" id="selettore-satellite" style="margin-bottom:0.7rem;">
         ${LAYER_SATELLITE.map((l) => `<button class="pillola ${l.id === layerSatelliteSelezionato ? "attiva" : ""}" data-layer="${l.id}">${l.nome}</button>`).join("")}
