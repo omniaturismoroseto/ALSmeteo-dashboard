@@ -46,6 +46,7 @@
   .pillola.attiva { border-color: var(--brass); color: var(--brass); background: var(--bg-panel-raised); }
 
   .grafico-contenitore { position: relative; height: 220px; margin-top: 0.6rem; }
+  .torta-contenitore { position: relative; height: 200px; }
 
   .log-eventi { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
   .voce-log { font-size: 0.78rem; padding: 0.5rem 0.7rem; border-radius: 6px; background: var(--bg-panel-raised); border-left: 3px solid var(--brass-dim); }
@@ -83,16 +84,16 @@
     <p id="didascalia-torte" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento...</p>
     <div id="pannello-torte" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem;">
       <div>
-        <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Bandiera nella giornata</p>
-        <canvas id="torta-bandiera"></canvas>
+        <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Bandiera</p>
+        <div class="torta-contenitore"><canvas id="torta-bandiera"></canvas></div>
       </div>
       <div>
         <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Direzione vento prevalente</p>
-        <canvas id="torta-direzione"></canvas>
+        <div class="torta-contenitore"><canvas id="torta-direzione"></canvas></div>
       </div>
       <div>
         <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Stato del mare</p>
-        <canvas id="torta-mare"></canvas>
+        <div class="torta-contenitore"><canvas id="torta-mare"></canvas></div>
       </div>
     </div>
   </div>
@@ -249,6 +250,7 @@ function disegnaTorta(idCanvas, chiaveStato, etichette, valori, colori) {
     data: { labels: etichette, datasets: [{ data: valori, backgroundColor: colori, borderColor: "#0F2733", borderWidth: 2 }] },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { position: "bottom", labels: { color: "#7FA0A8", font: { family: "Space Grotesk", size: 10 }, boxWidth: 10, padding: 8 } },
       },
