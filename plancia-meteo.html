@@ -914,7 +914,7 @@ function inizializzaRadar() {
 
   mappaRadar = L.map("mappa-radar", { zoomControl: false, attributionControl: false, maxZoom: 7, minZoom: 6 }).setView([42.75, 13.8], 7);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 7, className: "livello-mappa-scuro" }).addTo(mappaRadar);
-  L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadar).bindTooltip("Roseto/Pineto", { permanent: true, direction: "bottom", className: "mono" });
+  L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadar).bindTooltip("Roseto/Pineto", { permanent: false, direction: "top", className: "mono" });
 
   // Raggio di copertura delle sentinelle attorno a Roseto — due anelli
   // (20km e 40km), stessi valori usati dal server in meteoHelpers.js.
