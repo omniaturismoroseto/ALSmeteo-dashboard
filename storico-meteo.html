@@ -77,6 +77,24 @@
     </div>
     <div id="dettaglio-giorno"><div class="messaggio-stato">Seleziona un giorno dalla tabella sopra, o scegli una data.</div></div>
   </div>
+
+  <div class="pannello">
+    <div class="sezione-titolo">Distribuzione della giornata</div>
+    <div id="pannello-torte" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem;">
+      <div>
+        <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Bandiera nella giornata</p>
+        <canvas id="torta-bandiera"></canvas>
+      </div>
+      <div>
+        <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Direzione vento prevalente</p>
+        <canvas id="torta-direzione"></canvas>
+      </div>
+      <div>
+        <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Stato del mare</p>
+        <canvas id="torta-mare"></canvas>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -106,6 +124,7 @@ const EMOJI_BANDIERA = { verde: "badge-verde", giallo: "badge-giallo", rosso: "b
 let puntoSelezionatoDettaglio = "roseto_nord";
 let rilevazioniGiornoCorrente = [];
 let graficoDettaglio = null;
+let torteAttive = { bandiera: null, direzione: null, mare: null };
 
 function dataOggiRoma() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -148,6 +167,8 @@ async function caricaRiepilogoSettimana() {
     let ventoMax = 0;
     let garbinoRilevato = false;
     let fronteRilevato = false;
+    let sommaOnda = 0, campioniOnda = 0;
+    let sommaCorrente = 0, campioniCorrente = 0;
 
     for (const r of rilevazioni) {
       if (r.bandiera && LIVELLI_BANDIERA[r.bandiera.colore] > LIVELLI_BANDIERA[bandieraPeggiore.colore]) {
@@ -158,22 +179,39 @@ async function caricaRiepilogoSettimana() {
         ventoMax = r.ventoConsensoMax;
       }
       if (r.fronti && r.fronti.length > 0) fronteRilevato = true;
+
+      for (const p of r.punti) {
+        const oraMare = trovaOraVicinaA(p.mare, r.generatoIl);
+        if (oraMare && oraMare.altezza_onda_m !== null && oraMare.altezza_onda_m !== undefined) {
+          sommaOnda += oraMare.altezza_onda_m; campioniOnda++;
+        }
+        if (oraMare && oraMare.corrente_nodi !== null && oraMare.corrente_nodi !== undefined) {
+          sommaCorrente += oraMare.corrente_nodi; campioniCorrente++;
+        }
+      }
     }
 
-    righe.push({ data, senzaDati: false, bandieraPeggiore, ventoMax, garbinoRilevato, fronteRilevato, numeroRilevazioni: rilevazioni.length });
+    righe.push({
+      data, senzaDati: false, bandieraPeggiore, ventoMax, garbinoRilevato, fronteRilevato,
+      numeroRilevazioni: rilevazioni.length,
+      ondaMedia: campioniOnda > 0 ? sommaOnda / campioniOnda : null,
+      correnteMedia: campioniCorrente > 0 ? sommaCorrente / campioniCorrente : null,
+    });
   }
 
   const contenitore = document.getElementById("tabella-settimana");
   contenitore.innerHTML = `
     <table>
-      <thead><tr><th>Giorno</th><th>Bandiera peggiore</th><th>Vento max</th><th>Garbino</th><th>Fronti</th><th>Rilevazioni</th></tr></thead>
+      <thead><tr><th>Giorno</th><th>Bandiera peggiore</th><th>Vento max</th><th>Onda media</th><th>Corrente media</th><th>Garbino</th><th>Fronti</th><th>Rilevazioni</th></tr></thead>
       <tbody>
         ${righe.map((r) => r.senzaDati
-          ? `<tr><td class="mono">${formattaDataLeggibile(r.data)}</td><td colspan="5" style="color:var(--ink-faint)">nessun dato</td></tr>`
+          ? `<tr><td class="mono">${formattaDataLeggibile(r.data)}</td><td colspan="7" style="color:var(--ink-faint)">nessun dato</td></tr>`
           : `<tr class="riga-giorno" data-data="${r.data}">
               <td class="mono">${formattaDataLeggibile(r.data)}</td>
               <td><span class="badge-bandiera ${EMOJI_BANDIERA[r.bandieraPeggiore.colore]}">${r.bandieraPeggiore.colore}</span></td>
               <td class="mono">${r.ventoMax.toFixed(1)} kn</td>
+              <td class="mono">${r.ondaMedia !== null ? r.ondaMedia.toFixed(1) + " m" : "—"}</td>
+              <td class="mono">${r.correnteMedia !== null ? r.correnteMedia.toFixed(1) + " kn" : "—"}</td>
               <td>${r.garbinoRilevato ? "⚠️ sì" : "—"}</td>
               <td>${r.fronteRilevato ? "🌩️ sì" : "—"}</td>
               <td class="mono" style="color:var(--ink-faint)">${r.numeroRilevazioni}</td>
@@ -193,9 +231,94 @@ async function caricaRiepilogoSettimana() {
   });
 }
 
-// --- DETTAGLIO GIORNO ------------------------------------------------------
+// --- GRAFICI A TORTA: bandiera, direzione vento, stato mare ---------------
+const COLORI_BANDIERA_TORTA = { verde: "#2F9E44", giallo: "#F0B429", rosso: "#E0393E" };
+
+function nomeQuadrante(gradi) {
+  const direzioni = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+  return direzioni[Math.round(gradi / 45) % 8];
+}
+
+function disegnaTorta(idCanvas, chiaveStato, etichette, valori, colori) {
+  const canvas = document.getElementById(idCanvas);
+  if (!canvas) return;
+  if (torteAttive[chiaveStato]) torteAttive[chiaveStato].destroy();
+
+  torteAttive[chiaveStato] = new Chart(canvas, {
+    type: "pie",
+    data: { labels: etichette, datasets: [{ data: valori, backgroundColor: colori, borderColor: "#0F2733", borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: "bottom", labels: { color: "#7FA0A8", font: { family: "Space Grotesk", size: 10 }, boxWidth: 10, padding: 8 } },
+      },
+    },
+  });
+}
+
+function disegnaTutteLeTorte(puntoId) {
+  if (rilevazioniGiornoCorrente.length === 0) return;
+
+  // 1. Distribuzione bandiera nella giornata.
+  const conteggioBandiera = { verde: 0, giallo: 0, rosso: 0 };
+  rilevazioniGiornoCorrente.forEach((r) => { if (r.bandiera) conteggioBandiera[r.bandiera.colore]++; });
+  disegnaTorta("torta-bandiera", "bandiera",
+    ["Verde", "Giallo", "Rosso"],
+    [conteggioBandiera.verde, conteggioBandiera.giallo, conteggioBandiera.rosso],
+    [COLORI_BANDIERA_TORTA.verde, COLORI_BANDIERA_TORTA.giallo, COLORI_BANDIERA_TORTA.rosso]
+  );
+
+  // 2. Distribuzione direzione vento prevalente per il punto selezionato.
+  const conteggioQuadranti = {};
+  rilevazioniGiornoCorrente.forEach((r) => {
+    const ora = trovaOraPerPunto(r, puntoId);
+    if (ora && ora.direzione_consenso_gradi !== null && ora.direzione_consenso_gradi !== undefined) {
+      const q = nomeQuadrante(ora.direzione_consenso_gradi);
+      conteggioQuadranti[q] = (conteggioQuadranti[q] || 0) + 1;
+    }
+  });
+  const quadrantiOrdinati = Object.keys(conteggioQuadranti).sort((a, b) => conteggioQuadranti[b] - conteggioQuadranti[a]);
+  disegnaTorta("torta-direzione", "direzione",
+    quadrantiOrdinati,
+    quadrantiOrdinati.map((q) => conteggioQuadranti[q]),
+    quadrantiOrdinati.map((_, i) => `hsl(${35 + i * 40}, 55%, ${55 - i * 4}%)`)
+  );
+
+  // 3. Distribuzione stato del mare (categorie di altezza onda), su tutti i punti.
+  const conteggioMare = { "Calmo (<0.3m)": 0, "Poco mosso (0.3-0.6m)": 0, "Mosso (>0.6m)": 0 };
+  rilevazioniGiornoCorrente.forEach((r) => {
+    r.punti.forEach((p) => {
+      const oraMare = trovaOraVicinaA(p.mare, r.generatoIl);
+      if (oraMare && oraMare.altezza_onda_m !== null && oraMare.altezza_onda_m !== undefined) {
+        if (oraMare.altezza_onda_m < 0.3) conteggioMare["Calmo (<0.3m)"]++;
+        else if (oraMare.altezza_onda_m <= 0.6) conteggioMare["Poco mosso (0.3-0.6m)"]++;
+        else conteggioMare["Mosso (>0.6m)"]++;
+      }
+    });
+  });
+  disegnaTorta("torta-mare", "mare",
+    Object.keys(conteggioMare),
+    Object.values(conteggioMare),
+    ["#2F9E44", "#F0B429", "#E0393E"]
+  );
+}
 function trovaOraPerPunto(rilevazione, puntoId) {
   return rilevazione.punti.find((p) => p.punto === puntoId);
+}
+
+// Come oraCorrente sulla plancia, ma parametrizzata su un istante specifico
+// (qui serve per lo storico: "vicino a quando è stata presa la rilevazione",
+// non "vicino ad adesso").
+function trovaOraVicinaA(array, momentoIso) {
+  if (!array || array.length === 0) return null;
+  const target = new Date(momentoIso).getTime();
+  let migliore = array[0];
+  let distanzaMin = Infinity;
+  for (const o of array) {
+    const d = Math.abs(new Date(o.ora).getTime() - target);
+    if (d < distanzaMin) { distanzaMin = d; migliore = o; }
+  }
+  return migliore;
 }
 
 function costruisciLogEventi(rilevazioni) {
@@ -295,10 +418,12 @@ async function caricaDettaglioGiorno(data) {
       document.querySelectorAll("#selettore-punti-storico [data-punto]").forEach((b) => b.classList.remove("attiva"));
       el.classList.add("attiva");
       disegnaGraficoStorico(puntoSelezionatoDettaglio);
+      disegnaTutteLeTorte(puntoSelezionatoDettaglio);
     });
   });
 
   disegnaGraficoStorico(puntoSelezionatoDettaglio);
+  disegnaTutteLeTorte(puntoSelezionatoDettaglio);
 }
 
 document.getElementById("selettore-data").addEventListener("change", (evento) => {
