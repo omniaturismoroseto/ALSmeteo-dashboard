@@ -113,7 +113,7 @@ const firebaseConfig = {
   storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
   messagingSenderId: "699028105579",
   appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
-  measurementId: "G-M3PSWKEYCJ"
+  measurementId: "G-M3PSWKEYCJ",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -264,6 +264,8 @@ async function caricaStatisticheCumulative() {
     return;
   }
   statisticheCumulative = docSnap.data();
+  console.log("DEBUG statisticheCumulative:", statisticheCumulative);
+  console.log("DEBUG conteggioBandiera:", statisticheCumulative.conteggioBandiera);
 
   const didascalia = document.getElementById("didascalia-torte");
   if (didascalia && statisticheCumulative.dataInizio) {
