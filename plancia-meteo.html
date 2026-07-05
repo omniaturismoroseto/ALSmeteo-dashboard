@@ -442,14 +442,12 @@ import { getFirestore, doc, getDoc, collection, getDocs, query, limit } from "ht
 // (Console Firebase > Impostazioni progetto > Le tue app > SDK config),
 // gli stessi già usati in Omnia Segnalazioni / diariogiornaliero.html.
 const firebaseConfig = {
-  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  apiKey: "INSERISCI_API_KEY",
   authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
-  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "app-segnalazioni-omnia-roseto",
   storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
-  messagingSenderId: "699028105579",
-  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
-  measurementId: "G-M3PSWKEYCJ"
+  messagingSenderId: "INSERISCI_SENDER_ID",
+  appId: "INSERISCI_APP_ID",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -801,7 +799,7 @@ function renderTutto() {
         <button class="radar-bottone" id="radar-next">›</button>
         <span class="radar-tempo" id="radar-tempo">caricamento radar...</span>
       </div>
-      <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Utile per capire se un fronte visto verso Ascoli si sta muovendo verso la costa, non sostituisce l'ensemble per previsioni oltre l'ora.</p>
+      <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
     </div>` +
     renderPannelloSatellite();
 
@@ -917,6 +915,31 @@ function inizializzaRadar() {
   mappaRadar = L.map("mappa-radar", { zoomControl: false, attributionControl: false, maxZoom: 7, minZoom: 6 }).setView([42.75, 13.8], 7);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 7, className: "livello-mappa-scuro" }).addTo(mappaRadar);
   L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadar).bindTooltip("Roseto/Pineto", { permanent: true, direction: "bottom", className: "mono" });
+
+  // Raggio di copertura delle 8 sentinelle (40km) attorno a Roseto — stesso
+  // centro e raggio usati dal server in meteoHelpers.js, per capire a colpo
+  // d'occhio cosa il sistema sta davvero monitorando.
+  const CENTRO_SENTINELLE = [42.68, 14.0];
+  const RAGGIO_SENTINELLE_M = 40000;
+  L.circle(CENTRO_SENTINELLE, {
+    radius: RAGGIO_SENTINELLE_M,
+    color: "#C99B4A",
+    weight: 1.5,
+    fillColor: "#C99B4A",
+    fillOpacity: 0.05,
+    dashArray: "4 4",
+  }).addTo(mappaRadar);
+
+  const R_KM = 111.32;
+  const latRad = (CENTRO_SENTINELLE[0] * Math.PI) / 180;
+  [0, 45, 90, 135, 180, 225, 270, 315].forEach((bearing) => {
+    const bearingRad = (bearing * Math.PI) / 180;
+    const dLat = (40 / R_KM) * Math.cos(bearingRad);
+    const dLon = (40 / (R_KM * Math.cos(latRad))) * Math.sin(bearingRad);
+    L.circleMarker([CENTRO_SENTINELLE[0] + dLat, CENTRO_SENTINELLE[1] + dLon], {
+      radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
+    }).addTo(mappaRadar);
+  });
 
   fetch("https://api.rainviewer.com/public/weather-maps.json")
     .then((r) => r.json())
