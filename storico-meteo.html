@@ -79,7 +79,8 @@
   </div>
 
   <div class="pannello">
-    <div class="sezione-titolo">Distribuzione della giornata</div>
+    <div class="sezione-titolo">Distribuzione cumulativa (da sempre)</div>
+    <p id="didascalia-torte" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento...</p>
     <div id="pannello-torte" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem;">
       <div>
         <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Bandiera nella giornata</p>
@@ -231,13 +232,12 @@ async function caricaRiepilogoSettimana() {
   });
 }
 
-// --- GRAFICI A TORTA: bandiera, direzione vento, stato mare ---------------
+// --- GRAFICI A TORTA: CUMULATIVI DA SEMPRE ---------------------------------
+// Non ricalcolati dal giorno/settimana selezionata: leggono un unico
+// documento che il server aggiorna in automatico ad ogni rilevazione,
+// dal primissimo giorno di raccolta dati in poi.
 const COLORI_BANDIERA_TORTA = { verde: "#2F9E44", giallo: "#F0B429", rosso: "#E0393E" };
-
-function nomeQuadrante(gradi) {
-  const direzioni = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-  return direzioni[Math.round(gradi / 45) % 8];
-}
+let statisticheCumulative = null;
 
 function disegnaTorta(idCanvas, chiaveStato, etichette, valori, colori) {
   const canvas = document.getElementById(idCanvas);
@@ -256,50 +256,52 @@ function disegnaTorta(idCanvas, chiaveStato, etichette, valori, colori) {
   });
 }
 
-function disegnaTutteLeTorte(puntoId) {
-  if (rilevazioniGiornoCorrente.length === 0) return;
+async function caricaStatisticheCumulative() {
+  const docSnap = await getDoc(doc(db, "statisticheStoriche", "cumulativo"));
+  if (!docSnap.exists()) {
+    document.getElementById("pannello-torte").innerHTML = `<div class="messaggio-stato">Nessuna statistica cumulativa ancora disponibile.</div>`;
+    return;
+  }
+  statisticheCumulative = docSnap.data();
 
-  // 1. Distribuzione bandiera nella giornata.
-  const conteggioBandiera = { verde: 0, giallo: 0, rosso: 0 };
-  rilevazioniGiornoCorrente.forEach((r) => { if (r.bandiera) conteggioBandiera[r.bandiera.colore]++; });
+  const didascalia = document.getElementById("didascalia-torte");
+  if (didascalia && statisticheCumulative.dataInizio) {
+    didascalia.textContent = `Dati aggregati dal ${statisticheCumulative.dataInizio} — ${statisticheCumulative.totaleRilevazioni || 0} rilevazioni totali.`;
+  }
+
+  const cb = statisticheCumulative.conteggioBandiera || {};
   disegnaTorta("torta-bandiera", "bandiera",
     ["Verde", "Giallo", "Rosso"],
-    [conteggioBandiera.verde, conteggioBandiera.giallo, conteggioBandiera.rosso],
+    [cb.verde || 0, cb.giallo || 0, cb.rosso || 0],
     [COLORI_BANDIERA_TORTA.verde, COLORI_BANDIERA_TORTA.giallo, COLORI_BANDIERA_TORTA.rosso]
   );
 
-  // 2. Distribuzione direzione vento prevalente per il punto selezionato.
-  const conteggioQuadranti = {};
-  rilevazioniGiornoCorrente.forEach((r) => {
-    const ora = trovaOraPerPunto(r, puntoId);
-    if (ora && ora.direzione_consenso_gradi !== null && ora.direzione_consenso_gradi !== undefined) {
-      const q = nomeQuadrante(ora.direzione_consenso_gradi);
-      conteggioQuadranti[q] = (conteggioQuadranti[q] || 0) + 1;
-    }
-  });
+  const cm = statisticheCumulative.conteggioMare || {};
+  disegnaTorta("torta-mare", "mare",
+    ["Calmo (<0.3m)", "Poco mosso (0.3-0.6m)", "Mosso (>0.6m)"],
+    [cm.calmo || 0, cm.pocoMosso || 0, cm.mosso || 0],
+    ["#2F9E44", "#F0B429", "#E0393E"]
+  );
+
+  disegnaTortaDirezione(puntoSelezionatoDettaglio);
+}
+
+function disegnaTortaDirezione(puntoId) {
+  if (!statisticheCumulative) return;
+  const conteggioQuadranti = (statisticheCumulative.conteggioQuadranti || {})[puntoId] || {};
   const quadrantiOrdinati = Object.keys(conteggioQuadranti).sort((a, b) => conteggioQuadranti[b] - conteggioQuadranti[a]);
+
+  if (quadrantiOrdinati.length === 0) {
+    if (torteAttive.direzione) torteAttive.direzione.destroy();
+    const canvas = document.getElementById("torta-direzione");
+    if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+
   disegnaTorta("torta-direzione", "direzione",
     quadrantiOrdinati,
     quadrantiOrdinati.map((q) => conteggioQuadranti[q]),
     quadrantiOrdinati.map((_, i) => `hsl(${35 + i * 40}, 55%, ${55 - i * 4}%)`)
-  );
-
-  // 3. Distribuzione stato del mare (categorie di altezza onda), su tutti i punti.
-  const conteggioMare = { "Calmo (<0.3m)": 0, "Poco mosso (0.3-0.6m)": 0, "Mosso (>0.6m)": 0 };
-  rilevazioniGiornoCorrente.forEach((r) => {
-    r.punti.forEach((p) => {
-      const oraMare = trovaOraVicinaA(p.mare, r.generatoIl);
-      if (oraMare && oraMare.altezza_onda_m !== null && oraMare.altezza_onda_m !== undefined) {
-        if (oraMare.altezza_onda_m < 0.3) conteggioMare["Calmo (<0.3m)"]++;
-        else if (oraMare.altezza_onda_m <= 0.6) conteggioMare["Poco mosso (0.3-0.6m)"]++;
-        else conteggioMare["Mosso (>0.6m)"]++;
-      }
-    });
-  });
-  disegnaTorta("torta-mare", "mare",
-    Object.keys(conteggioMare),
-    Object.values(conteggioMare),
-    ["#2F9E44", "#F0B429", "#E0393E"]
   );
 }
 function trovaOraPerPunto(rilevazione, puntoId) {
@@ -418,12 +420,11 @@ async function caricaDettaglioGiorno(data) {
       document.querySelectorAll("#selettore-punti-storico [data-punto]").forEach((b) => b.classList.remove("attiva"));
       el.classList.add("attiva");
       disegnaGraficoStorico(puntoSelezionatoDettaglio);
-      disegnaTutteLeTorte(puntoSelezionatoDettaglio);
+      disegnaTortaDirezione(puntoSelezionatoDettaglio);
     });
   });
 
   disegnaGraficoStorico(puntoSelezionatoDettaglio);
-  disegnaTutteLeTorte(puntoSelezionatoDettaglio);
 }
 
 document.getElementById("selettore-data").addEventListener("change", (evento) => {
@@ -435,6 +436,7 @@ const ieriData = ultimiNGiorni(2)[1];
 document.getElementById("selettore-data").value = ieriData;
 caricaRiepilogoSettimana();
 caricaDettaglioGiorno(ieriData);
+caricaStatisticheCumulative();
 </script>
 
 </body>
