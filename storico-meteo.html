@@ -307,7 +307,9 @@ function disegnaTortaDirezione(puntoId) {
   );
 }
 function trovaOraPerPunto(rilevazione, puntoId) {
-  return rilevazione.punti.find((p) => p.punto === puntoId);
+  const punto = rilevazione.punti.find((p) => p.punto === puntoId);
+  if (!punto) return null;
+  return trovaOraVicinaA(punto.orario, rilevazione.generatoIl);
 }
 
 // Come oraCorrente sulla plancia, ma parametrizzata su un istante specifico
