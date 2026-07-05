@@ -96,6 +96,9 @@
         <div class="torta-contenitore"><canvas id="torta-mare" width="260" height="200"></canvas></div>
       </div>
     </div>
+  </div>  <div class="pannello">
+    <div class="sezione-titolo">🔧 Debug temporaneo</div>
+    <pre id="debug-output" style="white-space:pre-wrap; font-size:0.7rem; color:var(--ink-muted); background:var(--bg-panel-raised); padding:0.8rem; border-radius:6px; overflow-x:auto;">Caricamento...</pre>
   </div>
 </main>
 
@@ -266,6 +269,8 @@ async function caricaStatisticheCumulative() {
   statisticheCumulative = docSnap.data();
   console.log("DEBUG statisticheCumulative:", statisticheCumulative);
   console.log("DEBUG conteggioBandiera:", statisticheCumulative.conteggioBandiera);
+  const debugOutput = document.getElementById("debug-output");
+  if (debugOutput) debugOutput.textContent = JSON.stringify(statisticheCumulative, null, 2);
 
   const didascalia = document.getElementById("didascalia-torte");
   if (didascalia && statisticheCumulative.dataInizio) {
