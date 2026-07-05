@@ -685,7 +685,7 @@ function disegnaGrafico(puntoId) {
   });
 }
 
-function renderBannerEventi(eventi, tendenzeMare) {
+function renderBannerEventi(eventi, tendenzeMare, fronti) {
   let righe = "";
   if (eventi && eventi.pioggiaInArrivo) {
     righe += `<div class="banner-riga">🌧 Pioggia in arrivo — probabilità fino al ${eventi.probabilitaPioggiaMaxPerc}% nelle prossime ore.</div>`;
@@ -701,6 +701,11 @@ function renderBannerEventi(eventi, tendenzeMare) {
   }
   if (tendenzeMare && tendenzeMare.mareaInCrescita) {
     righe += `<div class="banner-riga">〰️ Marea in crescita — +${tendenzeMare.deltaMareaM.toFixed(2)} m nelle prossime ore.</div>`;
+  }
+  if (fronti && fronti.length > 0) {
+    for (const f of fronti) {
+      righe += `<div class="banner-riga">🌩️ Fronte in avvicinamento da ${f.direzione} (~40km) — nuvolosità ${f.nuvolositaPerc ?? "n/d"}%, vento allineato.</div>`;
+    }
   }
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
 }
@@ -763,7 +768,7 @@ function renderTutto() {
   }
 
   contenuto.innerHTML =
-    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare) +
+    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti) +
     renderPunti(ultimoStato) +
     renderSelettoreEGrafico(ultimoStato) +
     `<div class="pannello-radar">
