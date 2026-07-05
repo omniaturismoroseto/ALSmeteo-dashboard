@@ -916,29 +916,32 @@ function inizializzaRadar() {
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 7, className: "livello-mappa-scuro" }).addTo(mappaRadar);
   L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadar).bindTooltip("Roseto/Pineto", { permanent: true, direction: "bottom", className: "mono" });
 
-  // Raggio di copertura delle 8 sentinelle (40km) attorno a Roseto — stesso
-  // centro e raggio usati dal server in meteoHelpers.js, per capire a colpo
-  // d'occhio cosa il sistema sta davvero monitorando.
+  // Raggio di copertura delle sentinelle attorno a Roseto — due anelli
+  // (20km e 40km), stessi valori usati dal server in meteoHelpers.js.
   const CENTRO_SENTINELLE = [42.68, 14.0];
-  const RAGGIO_SENTINELLE_M = 40000;
-  L.circle(CENTRO_SENTINELLE, {
-    radius: RAGGIO_SENTINELLE_M,
-    color: "#C99B4A",
-    weight: 1.5,
-    fillColor: "#C99B4A",
-    fillOpacity: 0.05,
-    dashArray: "4 4",
-  }).addTo(mappaRadar);
-
   const R_KM = 111.32;
   const latRad = (CENTRO_SENTINELLE[0] * Math.PI) / 180;
-  [0, 45, 90, 135, 180, 225, 270, 315].forEach((bearing) => {
-    const bearingRad = (bearing * Math.PI) / 180;
-    const dLat = (40 / R_KM) * Math.cos(bearingRad);
-    const dLon = (40 / (R_KM * Math.cos(latRad))) * Math.sin(bearingRad);
-    L.circleMarker([CENTRO_SENTINELLE[0] + dLat, CENTRO_SENTINELLE[1] + dLon], {
-      radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
+
+  [20000, 40000].forEach((raggioM) => {
+    L.circle(CENTRO_SENTINELLE, {
+      radius: raggioM,
+      color: "#C99B4A",
+      weight: 1.5,
+      fillColor: "#C99B4A",
+      fillOpacity: 0.04,
+      dashArray: "4 4",
     }).addTo(mappaRadar);
+  });
+
+  [20, 40].forEach((raggioKm) => {
+    [0, 45, 90, 135, 180, 225, 270, 315].forEach((bearing) => {
+      const bearingRad = (bearing * Math.PI) / 180;
+      const dLat = (raggioKm / R_KM) * Math.cos(bearingRad);
+      const dLon = (raggioKm / (R_KM * Math.cos(latRad))) * Math.sin(bearingRad);
+      L.circleMarker([CENTRO_SENTINELLE[0] + dLat, CENTRO_SENTINELLE[1] + dLon], {
+        radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
+      }).addTo(mappaRadar);
+    });
   });
 
   fetch("https://api.rainviewer.com/public/weather-maps.json")
