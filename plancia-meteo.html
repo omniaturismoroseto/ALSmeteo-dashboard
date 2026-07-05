@@ -119,11 +119,16 @@
   .carta-punto {
     background: var(--bg-panel);
     border: 1px solid var(--line);
+    border-left: 3px solid var(--line);
     border-radius: 10px;
     padding: 1rem;
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease;
   }
+
+  .carta-punto.bandiera-verde { border-left-color: var(--flag-verde); }
+  .carta-punto.bandiera-giallo { border-left-color: var(--flag-giallo); }
+  .carta-punto.bandiera-rosso { border-left-color: var(--flag-rosso); }
 
   .carta-punto:hover { border-color: var(--brass-dim); }
 
@@ -490,6 +495,13 @@ function arcoSettore(cx, cy, raggioInterno, raggioEsterno, gradoInizio, gradoFin
   return `M ${x1} ${y1} A ${raggioEsterno} ${raggioEsterno} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${raggioInterno} ${raggioInterno} 0 0 0 ${x4} ${y4} Z`;
 }
 
+function nomeDirezioneVento(gradi) {
+  if (gradi === null || gradi === undefined) return "n/d";
+  const direzioni = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+  const indice = Math.round(gradi / 45) % 8;
+  return direzioni[indice];
+}
+
 function creaBussola(direzione, rischioGarbino, dimensione = 76) {
   const cx = dimensione / 2;
   const cy = dimensione / 2;
@@ -550,13 +562,18 @@ function renderPunti(ultimaRilevazione) {
     const t = p.tendenzeMare || {};
 
     html += `
-      <div class="carta-punto ${classeSelezionata}" data-punto="${p.punto}">
+      <div class="carta-punto bandiera-${bandiera.colore} ${classeSelezionata}" data-punto="${p.punto}">
         <div class="carta-testa">
           <span class="nome-punto">${p.nome}</span>
           <span class="badge-bandiera ${EMOJI_BANDIERA[bandiera.colore]}">${bandiera.colore}</span>
         </div>
         <div class="corpo-carta">
-          ${creaBussola(oraAttuale ? oraAttuale.direzione_consenso_gradi : null, rischioGarbino)}
+          <div style="display:flex; flex-direction:column; align-items:center; gap:0.35rem;">
+            ${creaBussola(oraAttuale ? oraAttuale.direzione_consenso_gradi : null, rischioGarbino)}
+            <span class="mono" style="font-size:0.7rem; color:${rischioGarbino ? "var(--flag-rosso)" : "var(--ink-muted)"}; font-weight:600;">
+              ${oraAttuale && oraAttuale.direzione_consenso_gradi !== null ? `da ${nomeDirezioneVento(oraAttuale.direzione_consenso_gradi)} · ${oraAttuale.direzione_consenso_gradi.toFixed(0)}°` : "direzione n/d"}
+            </span>
+          </div>
           <div class="letture">
             <div class="lettura-riga">
               <span class="lettura-valore mono">${oraAttuale && oraAttuale.vento_consenso_nodi !== null ? oraAttuale.vento_consenso_nodi.toFixed(1) : "—"}</span>
@@ -569,17 +586,17 @@ function renderPunti(ultimaRilevazione) {
               <span class="lettura-valore mono" style="font-size:0.8rem; color:var(--ink-muted)">💨 ${oraAttuale && oraAttuale.raffica_max_nodi !== null ? oraAttuale.raffica_max_nodi.toFixed(0) : "—"} kn</span>
               <span class="lettura-valore mono" style="font-size:0.8rem; color:var(--ink-muted); margin-left:0.5rem">🌧 ${oraAttuale && oraAttuale.probabilita_pioggia_perc !== null ? oraAttuale.probabilita_pioggia_perc + "%" : "—"}</span>
             </div>
-            <div class="lettura-etichetta" style="color:${accordo.colore}">accordo modelli: ${accordo.etichetta}</div>
+            <div class="lettura-etichetta" style="color:${accordo.colore}">accordo: ${accordo.etichetta}</div>
           </div>
         </div>
         <div class="riga-mare">
           <span>🌊 ${oraMareAttuale && oraMareAttuale.altezza_onda_m !== null ? oraMareAttuale.altezza_onda_m.toFixed(1) + " m" : "onde n/d"}${t.ondeInAumento ? " ↑" : ""}</span>
           <span>🌀 ${oraMareAttuale && oraMareAttuale.corrente_nodi !== null ? oraMareAttuale.corrente_nodi.toFixed(1) + " kn" : "corr. n/d"}${t.correnteInAumento ? " ↑" : ""}</span>
-          <span>〰️ marea${t.mareaInCrescita ? " in crescita ↑" : ""}</span>
+          <span>〰️ ${oraMareAttuale && oraMareAttuale.marea_m !== null ? (oraMareAttuale.marea_m * 100).toFixed(0) + " cm" : "marea n/d"}${t.mareaInCrescita ? " in crescita ↑" : ""}</span>
         </div>
         ${p.punto === "roseto_nord" && letturaStazione ? `
         <div class="riga-mare" style="color:var(--brass); border-top-color:var(--brass-dim)">
-          <span>📍 stazione: ${letturaStazione.ventoNodi !== null ? letturaStazione.ventoNodi.toFixed(1) + " kn" : "n/d"}${letturaStazione.direzioneGradi !== null ? " · " + letturaStazione.direzioneGradi.toFixed(0) + "°" : ""} (dato reale)</span>
+          <span>📍 stazione: ${letturaStazione.ventoNodi !== null ? letturaStazione.ventoNodi.toFixed(1) + " kn" : "n/d"}${letturaStazione.direzioneGradi !== null ? " · da " + nomeDirezioneVento(letturaStazione.direzioneGradi) + " " + letturaStazione.direzioneGradi.toFixed(0) + "°" : ""} (dato reale)</span>
         </div>` : ""}
         ${rischioGarbino ? `<div class="avviso-garbino">⚠ garbino — niente gonfiabili in acqua</div>` : ""}
       </div>`;
