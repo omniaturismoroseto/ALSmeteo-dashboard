@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calibrazione — Omnia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-abyss: #0A1C24;
+    --bg-panel: #0F2733;
+    --bg-panel-raised: #163542;
+    --ink: #E8F0EE;
+    --ink-muted: #7FA0A8;
+    --ink-faint: #4C6870;
+    --brass: #C99B4A;
+    --line: #234653;
+    --flag-verde: #2F9E44;
+    --flag-giallo: #F0B429;
+    --flag-rosso: #E0393E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg-abyss);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    padding: 0 0 3rem;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  header {
+    padding: 1.5rem 1.25rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+  }
+  h1 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+  h1 span { color: var(--brass); }
+  p.sottotitolo {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 0;
+  }
+  .messaggio-stato {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+  }
+  .pannello-punto {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .titolo-punto {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.9rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+  th {
+    text-align: left;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+  td {
+    padding: 0.55rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr.migliore td:first-child { color: var(--brass); font-weight: 600; }
+  .badge-fonte {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    background: var(--bg-panel-raised);
+    color: var(--ink-muted);
+  }
+  .badge-fonte.consenso { background: #3D2F0C; color: var(--flag-giallo); }
+  .badge-fonte.reale { background: #163C24; color: var(--flag-verde); }
+  .valore-errore {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .pochi-campioni {
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+  .nota-finale {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    margin-top: 2rem;
+    line-height: 1.6;
+  }
+  a.link-plancia {
+    color: var(--brass);
+    font-size: 0.78rem;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Calibrazione <span>Omnia</span></h1>
+  <p class="sottotitolo">Quanto ci azzeccano le previsioni, per punto e per fonte — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
+</header>
+
+<main>
+  <div id="contenuto"><div class="messaggio-stato">Caricamento dati di calibrazione...</div></div>
+  <p class="nota-finale">
+    <b>Errore medio vento</b>: negativo = il modello sottostima il vento reale, positivo = lo sovrastima.
+    <b>Errore assoluto medio</b>: quanto ci si allontana in media dal dato reale, in un senso o nell'altro — più basso è, meglio è, ed è la colonna giusta per confrontare le fonti tra loro.
+    <b>Campioni</b>: numero di confronti fatti finora — con pochi campioni (indicativamente sotto 15-20) i numeri sono ancora poco affidabili statisticamente.
+  </p>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Stessa configurazione usata in plancia-meteo.html / osservazione-manuale.html.
+const firebaseConfig = {
+  apiKey: "INSERISCI_API_KEY",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "INSERISCI_SENDER_ID",
+  appId: "INSERISCI_APP_ID",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const NOMI_PUNTI = { roseto_nord: "Roseto Nord", roseto_sud: "Roseto Sud", pineto: "Pineto", offshore: "Offshore" };
+const ORDINE_PUNTI = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
+
+const NOMI_FONTE = {
+  consenso: "Consenso (5 modelli)",
+  ecmwf_ifs025: "ECMWF",
+  gfs_seamless: "GFS",
+  icon_seamless: "ICON",
+  meteofrance_seamless: "Météo-France",
+  metno_seamless: "MET Norway",
+  osservazione_manuale: "Tue osservazioni",
+  stazione_locale: "Stazione Netatmo",
+};
+
+const CAMPIONI_MINIMI_AFFIDABILI = 15;
+
+function formattaSegno(valore, decimali = 1) {
+  if (valore === null || valore === undefined) return "—";
+  const segno = valore > 0 ? "+" : "";
+  return `${segno}${valore.toFixed(decimali)}`;
+}
+
+function renderTabellaPunto(puntoId, righe) {
+  // Ordino per errore assoluto medio vento crescente: la fonte più precisa in cima.
+  const righeOrdinate = [...righe].sort((a, b) => {
+    const ea = a.erroreAssolutoMedioVentoNodi ?? Infinity;
+    const eb = b.erroreAssolutoMedioVentoNodi ?? Infinity;
+    return ea - eb;
+  });
+
+  const corpoTabella = righeOrdinate.map((r, indice) => {
+    const pochiCampioni = (r.campioni ?? 0) < CAMPIONI_MINIMI_AFFIDABILI;
+    const classeFonte = r.sorgente === "consenso" ? "consenso" : (r.sorgente === "osservazione_manuale" || r.sorgente === "stazione_locale") ? "reale" : "";
+    const classeRiga = indice === 0 && !pochiCampioni ? "migliore" : "";
+
+    return `
+      <tr class="${classeRiga}">
+        <td><span class="badge-fonte ${classeFonte}">${NOMI_FONTE[r.sorgente] || r.sorgente}</span></td>
+        <td class="valore-errore">${pochiCampioni ? '<span class="pochi-campioni">insufficiente</span>' : formattaSegno(r.erroreAssolutoMedioVentoNodi) + " kn"}</td>
+        <td class="valore-errore">${formattaSegno(r.erroreMedioVentoNodi)} kn</td>
+        <td class="valore-errore">${r.erroreMedioDirezioneGradi !== null && r.erroreMedioDirezioneGradi !== undefined ? r.erroreMedioDirezioneGradi.toFixed(0) + "°" : "—"}</td>
+        <td class="valore-errore">${r.erroreMedioTemperaturaC !== null && r.erroreMedioTemperaturaC !== undefined ? formattaSegno(r.erroreMedioTemperaturaC) + "°C" : "—"}</td>
+        <td class="mono" style="color:var(--ink-faint)">${r.campioni ?? 0}</td>
+      </tr>`;
+  }).join("");
+
+  return `
+    <div class="pannello-punto">
+      <div class="titolo-punto">${NOMI_PUNTI[puntoId] || puntoId}</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Fonte</th>
+            <th>Errore assoluto vento</th>
+            <th>Bias vento</th>
+            <th>Errore direzione</th>
+            <th>Errore temp.</th>
+            <th>Campioni</th>
+          </tr>
+        </thead>
+        <tbody>${corpoTabella}</tbody>
+      </table>
+    </div>`;
+}
+
+async function caricaCalibrazione() {
+  const contenuto = document.getElementById("contenuto");
+
+  try {
+    const snap = await getDocs(collection(db, "calibrazioneMeteo"));
+    if (snap.empty) {
+      contenuto.innerHTML = `<div class="messaggio-stato">Nessun dato di calibrazione ancora raccolto — torna tra qualche giorno.</div>`;
+      return;
+    }
+
+    const perPunto = {};
+    snap.forEach((doc) => {
+      const dati = doc.data();
+      const punto = dati.punto;
+      if (!punto) return;
+      if (!perPunto[punto]) perPunto[punto] = [];
+      perPunto[punto].push(dati);
+    });
+
+    let html = "";
+    for (const puntoId of ORDINE_PUNTI) {
+      if (perPunto[puntoId]) html += renderTabellaPunto(puntoId, perPunto[puntoId]);
+    }
+    // Eventuali punti non previsti nell'ordine standard (robustezza).
+    for (const puntoId in perPunto) {
+      if (!ORDINE_PUNTI.includes(puntoId)) html += renderTabellaPunto(puntoId, perPunto[puntoId]);
+    }
+
+    contenuto.innerHTML = html;
+  } catch (errore) {
+    console.error(errore);
+    contenuto.innerHTML = `<div class="messaggio-stato">Errore di connessione a Firestore.</div>`;
+  }
+}
+
+caricaCalibrazione();
+</script>
+
+</body>
+</html>
