@@ -849,7 +849,7 @@ function renderBannerEventi(eventi, tendenzeMare, fronti) {
   }
   if (fronti && fronti.length > 0) {
     for (const f of fronti) {
-      righe += `<div class="banner-riga">🌩️ Fronte in avvicinamento da ${f.direzione} — nuvolosità ${f.nuvolositaPerc ?? "n/d"}%, vento allineato.</div>`;
+      righe += `<div class="banner-riga">🌩️ Nuvolosità in avvicinamento da ${f.direzione} (${f.nuvolositaPerc ?? "n/d"}% stimato, vento allineato) — previsione, non pioggia confermata: verifica sul radar sopra.</div>`;
     }
   }
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
@@ -916,8 +916,13 @@ function renderTutto() {
     renderPunti(ultimoStato) +
     renderSelettoreEGrafico(ultimoStato) +
     `<div class="pannello-radar">
-      <div class="sezione-titolo"><span>Radar pioggia — Ascoli → costa, con nowcast</span></div>
-      <div id="mappa-radar"></div>
+      <div class="sezione-titolo"><span>Radar Pioggia Omnia ALS</span></div>
+      <div style="position:relative;">
+        <div id="mappa-radar"></div>
+        <div style="position:absolute; top:10px; right:10px; z-index:500; background:rgba(15,39,51,0.85); border:1px solid var(--brass-dim); border-radius:6px; padding:0.3rem 0.5rem; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--brass); font-size:0.85rem; font-weight:600; pointer-events:none;">
+          ↑<br><span style="font-size:0.6rem;">N</span>
+        </div>
+      </div>
       <div class="radar-controlli">
         <button class="radar-bottone" id="radar-prev">‹</button>
         <button class="radar-bottone" id="radar-play">▶</button>
