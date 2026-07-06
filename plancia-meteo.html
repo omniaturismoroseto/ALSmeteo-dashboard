@@ -868,6 +868,7 @@ function urlImmagineSatellite(layer) {
     height: "500",
     srs: "EPSG:4326",
     format: "image/png",
+    _: Date.now(), // rompe la cache del browser: ogni richiesta è considerata "nuova"
   });
   return `https://view.eumetsat.int/geoserver/wms?${params.toString()}`;
 }
@@ -1127,6 +1128,16 @@ onAuthStateChanged(auth, (utente) => {
     schermataLogin.style.display = "flex";
     bottoneEsci.style.display = "none";
     if (intervalloAggiornamento) { clearInterval(intervalloAggiornamento); intervalloAggiornamento = null; }
+  }
+});
+
+// Quando il telefono si blocca o l'app va in secondo piano, il sistema
+// mette in pausa il timer per risparmiare batteria — normale, non evitabile
+// del tutto. Quello che possiamo fare: appena l'app torna visibile,
+// aggiornare SUBITO invece di aspettare il prossimo giro dei 5 minuti.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && intervalloAggiornamento) {
+    caricaDati();
   }
 });
 
