@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calibrazione — Omnia</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A1C24">
+<link rel="apple-touch-icon" href="icona-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -143,14 +146,12 @@ import { getFirestore, collection, getDocs } from "https://www.gstatic.com/fireb
 
 // Stessa configurazione usata in plancia-meteo.html / osservazione-manuale.html.
 const firebaseConfig = {
-  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  apiKey: "INSERISCI_API_KEY",
   authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
-  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "app-segnalazioni-omnia-roseto",
   storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
-  messagingSenderId: "699028105579",
-  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
-  measurementId: "G-M3PSWKEYCJ"
+  messagingSenderId: "INSERISCI_SENDER_ID",
+  appId: "INSERISCI_APP_ID",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -257,6 +258,12 @@ async function caricaCalibrazione() {
 }
 
 caricaCalibrazione();
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  }
 </script>
 
 </body>
