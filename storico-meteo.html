@@ -59,6 +59,78 @@
     background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink);
     font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; padding: 0.5rem 0.7rem; border-radius: 6px;
   }
+  .schermata-login {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-abyss);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1.25rem;
+  }
+
+  .scheda-login {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+  }
+
+  .scheda-login h2 {
+    font-size: 1.05rem;
+    margin: 0 0 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+
+  .scheda-login p {
+    color: var(--ink-muted);
+    font-size: 0.78rem;
+    margin: 0 0 1.3rem;
+  }
+
+  .scheda-login input {
+    width: 100%;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    margin-bottom: 0.7rem;
+  }
+
+  .scheda-login input:focus {
+    outline: none;
+    border-color: var(--brass);
+  }
+
+  .scheda-login button {
+    width: 100%;
+    background: var(--brass);
+    color: #1A1206;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 0.4rem;
+  }
+
+  .login-errore {
+    color: var(--flag-rosso, #E0393E) !important;
+    font-size: 0.75rem !important;
+    margin: 0.8rem 0 0 !important;
+    min-height: 1em;
+  }
 </style>
 </head>
 <body>
@@ -68,7 +140,7 @@
   <p class="sottotitolo">Ultimi giorni e dettaglio orario — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
 </header>
 
-<main>
+<main id="contenuto-principale" style="display:none;">
   <div class="pannello">
     <div class="sezione-titolo">Ultimi 7 giorni</div>
     <div id="tabella-settimana"><div class="messaggio-stato">Caricamento...</div></div>
@@ -102,10 +174,22 @@
   </div>
 </main>
 
+<div id="schermata-login" class="schermata-login">
+  <div class="scheda-login">
+    <h2>Accesso riservato</h2>
+    <p>Storico — solo staff autorizzato</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <button id="login-bottone">Accedi</button>
+    <p id="login-errore" class="login-errore"></p>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // Stessa configurazione usata negli altri file della plancia.
 const firebaseConfig = {
@@ -440,9 +524,35 @@ document.getElementById("selettore-data").addEventListener("change", (evento) =>
 // Precompila il selettore data con ieri, e carica tutto all'avvio.
 const ieriData = ultimiNGiorni(2)[1];
 document.getElementById("selettore-data").value = ieriData;
-caricaRiepilogoSettimana();
-caricaDettaglioGiorno(ieriData);
-caricaStatisticheCumulative();
+// --- AUTENTICAZIONE: il contenuto parte solo dopo il login ---------------
+const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+onAuthStateChanged(auth, (utente) => {
+  document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("contenuto-principale").style.display = utente ? "block" : "none";
+  if (utente) {
+    caricaRiepilogoSettimana();
+    caricaDettaglioGiorno(ieriData);
+    caricaStatisticheCumulative();
+  }
+});
+
+document.getElementById("login-bottone").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const erroreEl = document.getElementById("login-errore");
+  erroreEl.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (errore) {
+    erroreEl.textContent = "Email o password non corretti.";
+  }
+});
+
+document.getElementById("login-password").addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") document.getElementById("login-bottone").click();
+});
 </script>
 
 <script>

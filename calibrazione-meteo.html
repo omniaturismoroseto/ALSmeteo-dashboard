@@ -122,6 +122,78 @@
     font-size: 0.78rem;
     text-decoration: none;
   }
+  .schermata-login {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-abyss);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1.25rem;
+  }
+
+  .scheda-login {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+  }
+
+  .scheda-login h2 {
+    font-size: 1.05rem;
+    margin: 0 0 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+
+  .scheda-login p {
+    color: var(--ink-muted);
+    font-size: 0.78rem;
+    margin: 0 0 1.3rem;
+  }
+
+  .scheda-login input {
+    width: 100%;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    margin-bottom: 0.7rem;
+  }
+
+  .scheda-login input:focus {
+    outline: none;
+    border-color: var(--brass);
+  }
+
+  .scheda-login button {
+    width: 100%;
+    background: var(--brass);
+    color: #1A1206;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 0.4rem;
+  }
+
+  .login-errore {
+    color: var(--flag-rosso, #E0393E) !important;
+    font-size: 0.75rem !important;
+    margin: 0.8rem 0 0 !important;
+    min-height: 1em;
+  }
 </style>
 </head>
 <body>
@@ -131,7 +203,7 @@
   <p class="sottotitolo">Quanto ci azzeccano le previsioni, per punto e per fonte — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
 </header>
 
-<main>
+<main id="contenuto-principale" style="display:none;">
   <div id="contenuto"><div class="messaggio-stato">Caricamento dati di calibrazione...</div></div>
   <p class="nota-finale">
     <b>Errore medio vento</b>: negativo = il modello sottostima il vento reale, positivo = lo sovrastima.
@@ -140,18 +212,32 @@
   </p>
 </main>
 
+<div id="schermata-login" class="schermata-login">
+  <div class="scheda-login">
+    <h2>Accesso riservato</h2>
+    <p>Calibrazione — solo staff autorizzato</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <button id="login-bottone">Accedi</button>
+    <p id="login-errore" class="login-errore"></p>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // Stessa configurazione usata in plancia-meteo.html / osservazione-manuale.html.
 const firebaseConfig = {
-  apiKey: "INSERISCI_API_KEY",
+  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
   authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "app-segnalazioni-omnia-roseto",
   storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
-  messagingSenderId: "INSERISCI_SENDER_ID",
-  appId: "INSERISCI_APP_ID",
+  messagingSenderId: "699028105579",
+  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
+  measurementId: "G-M3PSWKEYCJ",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -257,7 +343,31 @@ async function caricaCalibrazione() {
   }
 }
 
-caricaCalibrazione();
+// --- AUTENTICAZIONE: il contenuto parte solo dopo il login ---------------
+const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+onAuthStateChanged(auth, (utente) => {
+  document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("contenuto-principale").style.display = utente ? "block" : "none";
+  if (utente) caricaCalibrazione();
+});
+
+document.getElementById("login-bottone").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const erroreEl = document.getElementById("login-errore");
+  erroreEl.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (errore) {
+    erroreEl.textContent = "Email o password non corretti.";
+  }
+});
+
+document.getElementById("login-password").addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") document.getElementById("login-bottone").click();
+});
 </script>
 
 <script>
