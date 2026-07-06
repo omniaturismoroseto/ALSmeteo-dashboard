@@ -849,7 +849,7 @@ function renderBannerEventi(eventi, tendenzeMare, fronti) {
   }
   if (fronti && fronti.length > 0) {
     for (const f of fronti) {
-      righe += `<div class="banner-riga">🌩️ Fronte in avvicinamento da ${f.direzione} (~40km) — nuvolosità ${f.nuvolositaPerc ?? "n/d"}%, vento allineato.</div>`;
+      righe += `<div class="banner-riga">🌩️ Fronte in avvicinamento da ${f.direzione} — nuvolosità ${f.nuvolositaPerc ?? "n/d"}%, vento allineato.</div>`;
     }
   }
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
