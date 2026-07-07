@@ -260,7 +260,7 @@ async function caricaRiepilogoSettimana() {
     let sommaCorrente = 0, campioniCorrente = 0;
 
     for (const r of rilevazioni) {
-      if (r.bandiera && LIVELLI_BANDIERA[r.bandiera.colore] > LIVELLI_BANDIERA[bandieraPeggiore.colore]) {
+      if (r.bandiera && r.bandiera.colore !== "fuori_orario" && LIVELLI_BANDIERA[r.bandiera.colore] > LIVELLI_BANDIERA[bandieraPeggiore.colore]) {
         bandieraPeggiore = r.bandiera;
       }
       if (r.bandiera && r.bandiera.garbinoRilevato) garbinoRilevato = true;
@@ -425,7 +425,11 @@ function costruisciLogEventi(rilevazioni) {
     const att = rilevazioni[i];
     const ora = `${att.rilevazione.slice(0, 2)}:${att.rilevazione.slice(2)}`;
 
-    if (prec.bandiera && att.bandiera && LIVELLI_BANDIERA[att.bandiera.colore] > LIVELLI_BANDIERA[prec.bandiera.colore]) {
+    if (
+      prec.bandiera && att.bandiera &&
+      prec.bandiera.colore !== "fuori_orario" && att.bandiera.colore !== "fuori_orario" &&
+      LIVELLI_BANDIERA[att.bandiera.colore] > LIVELLI_BANDIERA[prec.bandiera.colore]
+    ) {
       log.push(`${ora} — Bandiera passata a ${att.bandiera.colore.toUpperCase()}: ${att.bandiera.motivo}`);
     }
     if (prec.eventi && att.eventi) {

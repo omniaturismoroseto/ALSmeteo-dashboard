@@ -237,6 +237,8 @@
   .carta-punto.bandiera-verde { border-left-color: var(--flag-verde); }
   .carta-punto.bandiera-giallo { border-left-color: var(--flag-giallo); }
   .carta-punto.bandiera-rosso { border-left-color: var(--flag-rosso); }
+  .carta-punto.bandiera-fuori_orario { border-left-color: var(--ink-faint); }
+  .badge-fuori_orario { background: var(--bg-panel-raised); color: var(--ink-faint); }
 
   .carta-punto:hover { border-color: var(--brass-dim); }
 
@@ -583,7 +585,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const NOMI_PUNTI_ORDINE = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
-const EMOJI_BANDIERA = { verde: "badge-verde", giallo: "badge-giallo", rosso: "badge-rosso" };
+const EMOJI_BANDIERA = { verde: "badge-verde", giallo: "badge-giallo", rosso: "badge-rosso", fuori_orario: "badge-fuori_orario" };
 const COLORE_HEX = { verde: "#2F9E44", giallo: "#F0B429", rosso: "#E0393E" };
 
 let ultimoStato = null;
@@ -694,7 +696,7 @@ function renderPunti(ultimaRilevazione) {
       <div class="carta-punto bandiera-${bandiera.colore} ${classeSelezionata}" data-punto="${p.punto}">
         <div class="carta-testa">
           <span class="nome-punto">${p.nome}</span>
-          <span class="badge-bandiera ${EMOJI_BANDIERA[bandiera.colore]}">${bandiera.colore}</span>
+          <span class="badge-bandiera ${EMOJI_BANDIERA[bandiera.colore]}">${bandiera.colore === "fuori_orario" ? "N/D" : bandiera.colore}</span>
         </div>
         <div class="corpo-carta">
           <div style="display:flex; flex-direction:column; align-items:center; gap:0.35rem;">
