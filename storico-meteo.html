@@ -159,7 +159,7 @@
     <p id="didascalia-torte" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento...</p>
     <div id="pannello-torte" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem;">
       <div>
-        <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Bandiera</p>
+        <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Mare mosso o calmo</p>
         <div class="torta-contenitore"><canvas id="torta-bandiera" width="260" height="200"></canvas></div>
       </div>
       <div>
@@ -357,14 +357,14 @@ async function caricaStatisticheCumulative() {
     didascalia.textContent = `Dati aggregati dal ${statisticheCumulative.dataInizio} — ${statisticheCumulative.totaleRilevazioni || 0} rilevazioni totali.`;
   }
 
-  const cb = statisticheCumulative.conteggioBandiera || {};
+  const cm = statisticheCumulative.conteggioMare || {};
+  const mossoTotale = (cm.pocoMosso || 0) + (cm.mosso || 0);
   disegnaTorta("torta-bandiera", "bandiera",
-    ["Verde", "Giallo", "Rosso"],
-    [cb.verde || 0, cb.giallo || 0, cb.rosso || 0],
-    [COLORI_BANDIERA_TORTA.verde, COLORI_BANDIERA_TORTA.giallo, COLORI_BANDIERA_TORTA.rosso]
+    ["Calmo", "Mosso"],
+    [cm.calmo || 0, mossoTotale],
+    ["#2F9E44", "#E0393E"]
   );
 
-  const cm = statisticheCumulative.conteggioMare || {};
   disegnaTorta("torta-mare", "mare",
     ["Calmo (<0.3m)", "Poco mosso (0.3-0.6m)", "Mosso (>0.6m)"],
     [cm.calmo || 0, cm.pocoMosso || 0, cm.mosso || 0],
