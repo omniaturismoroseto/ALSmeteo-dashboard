@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestione Lidi — Omnia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A1C24">
+<link rel="apple-touch-icon" href="icona-192.png">
+<style>
+  :root {
+    --bg-abyss: #0A1C24; --bg-panel: #0F2733; --bg-panel-raised: #163542;
+    --ink: #E8F0EE; --ink-muted: #7FA0A8; --ink-faint: #4C6870;
+    --brass: #C99B4A; --brass-dim: #8C6E3B; --line: #234653;
+    --flag-verde: #2F9E44; --flag-giallo: #F0B429; --flag-rosso: #E0393E;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg-abyss); color: var(--ink); font-family: 'Space Grotesk', sans-serif; padding: 0 0 3rem; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  header { padding: 1.5rem 1.25rem 1.25rem; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
+  h1 span { color: var(--brass); }
+  p.sottotitolo { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--ink-muted); }
+  a.link-plancia { color: var(--brass); font-size: 0.78rem; text-decoration: none; }
+  main { max-width: 800px; margin: 0 auto; padding: 1.5rem 1.25rem 0; }
+  .messaggio-stato { padding: 2rem 1rem; text-align: center; color: var(--ink-muted); font-size: 0.85rem; }
+
+  .pannello { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1rem; margin-bottom: 1.5rem; }
+  .sezione-titolo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); margin: 0 0 0.85rem; }
+
+  .voce-lido {
+    display: flex; justify-content: space-between; align-items: center; gap: 0.8rem;
+    padding: 0.8rem 0; border-bottom: 1px solid var(--line);
+  }
+  .voce-lido:last-child { border-bottom: none; }
+  .info-lido { flex: 1; }
+  .nome-lido { font-weight: 600; font-size: 0.9rem; }
+  .dettaglio-lido { font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.2rem; }
+  .azioni-lido { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+  button.btn-azione {
+    border: none; border-radius: 6px; padding: 0.5rem 0.9rem; font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  }
+  .btn-approva { background: var(--flag-verde); color: #0A1C24; }
+  .btn-rifiuta, .btn-revoca { background: var(--flag-rosso); color: #fff; }
+  button.btn-azione:disabled { opacity: 0.5; cursor: default; }
+
+  .schermata-login {
+    position: fixed; inset: 0; background: var(--bg-abyss);
+    display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1.25rem;
+  }
+  .scheda-login { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 2rem 1.5rem; width: 100%; max-width: 340px; text-align: center; }
+  .scheda-login h2 { font-size: 1.05rem; margin: 0 0 0.4rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); }
+  .scheda-login p { color: var(--ink-muted); font-size: 0.78rem; margin: 0 0 1.3rem; }
+  .scheda-login input {
+    width: 100%; background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; padding: 0.7rem 0.9rem; border-radius: 8px; margin-bottom: 0.7rem;
+  }
+  .scheda-login input:focus { outline: none; border-color: var(--brass); }
+  .scheda-login button {
+    width: 100%; background: var(--brass); color: #1A1206; border: none; font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600; font-size: 0.9rem; padding: 0.75rem; border-radius: 8px; cursor: pointer; margin-top: 0.4rem;
+  }
+  .login-errore { color: var(--flag-rosso) !important; font-size: 0.75rem !important; margin: 0.8rem 0 0 !important; min-height: 1em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Gestione <span>Lidi</span></h1>
+  <p class="sottotitolo">Richieste di iscrizione agli alert meteo — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
+</header>
+
+<main id="contenuto-principale" style="display:none;">
+  <div class="pannello">
+    <div class="sezione-titolo">Richieste in attesa</div>
+    <div id="lista-richieste"><div class="messaggio-stato">Caricamento...</div></div>
+  </div>
+
+  <div class="pannello">
+    <div class="sezione-titolo">Lidi attivi</div>
+    <div id="lista-attivi"><div class="messaggio-stato">Caricamento...</div></div>
+  </div>
+</main>
+
+<div id="schermata-login" class="schermata-login">
+  <div class="scheda-login">
+    <h2>Accesso riservato</h2>
+    <p>Gestione lidi — solo staff autorizzato</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <button id="login-bottone">Accedi</button>
+    <p id="login-errore" class="login-errore"></p>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "699028105579",
+  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
+  measurementId: "G-M3PSWKEYCJ",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const URL_FUNZIONE = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/gestisciRichiestaLido";
+
+async function chiamaGestioneLido(chatId, azione, nomeLido) {
+  const idToken = await auth.currentUser.getIdToken();
+  const risposta = await fetch(URL_FUNZIONE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ chatId, azione, nomeLido }),
+  });
+  if (!risposta.ok) {
+    const dati = await risposta.json().catch(() => ({}));
+    throw new Error(dati.errore || `Errore ${risposta.status}`);
+  }
+  return risposta.json();
+}
+
+async function caricaRichieste() {
+  const contenitore = document.getElementById("lista-richieste");
+  const snap = await getDocs(query(collection(db, "richiesteLidi"), where("stato", "==", "in_attesa_approvazione")));
+
+  if (snap.empty) {
+    contenitore.innerHTML = `<div class="messaggio-stato">Nessuna richiesta in attesa.</div>`;
+    return;
+  }
+
+  contenitore.innerHTML = snap.docs.map((doc) => {
+    const dati = doc.data();
+    return `
+      <div class="voce-lido" data-chat-id="${doc.id}">
+        <div class="info-lido">
+          <div class="nome-lido">${dati.nomeLido || "senza nome"}</div>
+          <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.richiestoIl ? " · " + new Date(dati.richiestoIl).toLocaleString("it-IT") : ""}</div>
+        </div>
+        <div class="azioni-lido">
+          <button class="btn-azione btn-approva" data-azione="approva">Approva</button>
+          <button class="btn-azione btn-rifiuta" data-azione="rifiuta">Rifiuta</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  contenitore.querySelectorAll(".btn-azione").forEach((bottone) => {
+    bottone.addEventListener("click", async () => {
+      const voce = bottone.closest(".voce-lido");
+      const chatId = voce.getAttribute("data-chat-id");
+      const azione = bottone.getAttribute("data-azione");
+      const nomeLido = voce.querySelector(".nome-lido").textContent;
+
+      voce.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      try {
+        await chiamaGestioneLido(chatId, azione, nomeLido);
+        await caricaTutto();
+      } catch (errore) {
+        alert(`Errore: ${errore.message}`);
+        voce.querySelectorAll("button").forEach((b) => (b.disabled = false));
+      }
+    });
+  });
+}
+
+async function caricaAttivi() {
+  const contenitore = document.getElementById("lista-attivi");
+  const snap = await getDocs(query(collection(db, "destinatariLidi"), where("stato", "==", "attivo")));
+
+  if (snap.empty) {
+    contenitore.innerHTML = `<div class="messaggio-stato">Nessun lido ancora attivo.</div>`;
+    return;
+  }
+
+  contenitore.innerHTML = snap.docs.map((doc) => {
+    const dati = doc.data();
+    return `
+      <div class="voce-lido" data-chat-id="${doc.id}">
+        <div class="info-lido">
+          <div class="nome-lido">${dati.nomeLido || "senza nome"}</div>
+          <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.approvatoIl ? " · attivo dal " + new Date(dati.approvatoIl).toLocaleDateString("it-IT") : ""}</div>
+        </div>
+        <div class="azioni-lido">
+          <button class="btn-azione btn-revoca" data-azione="revoca">Revoca</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  contenitore.querySelectorAll(".btn-azione").forEach((bottone) => {
+    bottone.addEventListener("click", async () => {
+      const voce = bottone.closest(".voce-lido");
+      const chatId = voce.getAttribute("data-chat-id");
+      if (!confirm("Revocare l'accesso agli alert per questo lido?")) return;
+      bottone.disabled = true;
+      try {
+        await chiamaGestioneLido(chatId, "revoca", null);
+        await caricaTutto();
+      } catch (errore) {
+        alert(`Errore: ${errore.message}`);
+        bottone.disabled = false;
+      }
+    });
+  });
+}
+
+async function caricaTutto() {
+  await caricaRichieste();
+  await caricaAttivi();
+}
+
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+onAuthStateChanged(auth, (utente) => {
+  document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("contenuto-principale").style.display = utente ? "block" : "none";
+  if (utente) caricaTutto();
+});
+
+document.getElementById("login-bottone").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const erroreEl = document.getElementById("login-errore");
+  erroreEl.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (errore) {
+    erroreEl.textContent = "Email o password non corretti.";
+  }
+});
+
+document.getElementById("login-password").addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") document.getElementById("login-bottone").click();
+});
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  }
+</script>
+
+</body>
+</html>
