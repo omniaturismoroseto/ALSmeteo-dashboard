@@ -217,12 +217,15 @@ async function caricaGriglia() {
 
     dati.punti.forEach((p) => {
       if (p.lat === undefined || p.lon === undefined) return;
+      const rigaDHMZ = p.osservatoDHMZ
+        ? `<br><span style="color:#C99B4A;">📡 DHMZ osservato: ${formattaValore(p.osservatoDHMZ.ventoNodi, " kn")} da ${p.osservatoDHMZ.direzioneTesto || "n/d"}${p.osservatoDHMZ.temperaturaC !== null ? ", " + p.osservatoDHMZ.temperaturaC.toFixed(1) + "°C" : ""}</span>`
+        : "";
       const popup = `
         <b>${p.nome}</b><br>
         Vento: ${formattaValore(p.ventoNodi, " kn")} · Raffica: ${formattaValore(p.rafficaNodi, " kn")}<br>
         Onda: ${formattaValore(p.altezzaOndaM, " m")} (${formattaValore(p.periodoOndaS, "s", 0)})<br>
         Corrente: ${formattaValore(p.correnteNodi, " kn")}<br>
-        Marea: ${formattaValore(p.mareaM, " m")} · Mare: ${formattaValore(p.temperaturaMareC, "°C", 1)}
+        Marea: ${formattaValore(p.mareaM, " m")} · Mare: ${formattaValore(p.temperaturaMareC, "°C", 1)}${rigaDHMZ}
       `;
       L.marker([p.lat, p.lon], { icon: iconaVento(p.direzioneGradi, p.ventoNodi) })
         .addTo(mappaAdriatico)
