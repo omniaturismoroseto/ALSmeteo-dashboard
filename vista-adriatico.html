@@ -143,14 +143,12 @@ function inizializzaMappa() {
 
   // Correnti CMEMS (Copernicus Marine Service) — tile WMTS pubbliche, nessuna
   // registrazione richiesta. Dataset: correnti superficiali orarie, 4.2km,
-  // tutto il Mediterraneo (Adriatico compreso).
-  const adesso = new Date();
-  adesso.setUTCMinutes(0, 0, 0);
-  const orarioIso = adesso.toISOString().replace(".000Z", ".000000000Z");
-
+  // tutto il Mediterraneo (Adriatico compreso). Niente parametro "time":
+  // senza specificarlo il server serve l'ultimo dato disponibile — il
+  // formato esatto dell'orario per questo dataset dava errore 400.
   const layerCorrenti = "MEDSEA_ANALYSISFORECAST_PHY_006_013/cmems_mod_med_phy-cur_anfc_4.2km-2D_PT1H-m/sea_water_velocity";
   L.tileLayer(
-    `https://wmts.marine.copernicus.eu/teroWmts/?service=WMTS&request=GetTile&version=1.0.0&layer=${layerCorrenti}&tilematrixset=EPSG:3857&tilematrix={z}&tilerow={y}&tilecol={x}&time=${orarioIso}&STYLE=vectorStyle:solidAndVector,cmap:thermal`,
+    `https://wmts.marine.copernicus.eu/teroWmts/?service=WMTS&request=GetTile&version=1.0.0&layer=${layerCorrenti}&tilematrixset=EPSG:3857&tilematrix={z}&tilerow={y}&tilecol={x}&STYLE=vectorStyle:solidAndVector,cmap:thermal`,
     { minZoom: 4, maxZoom: 9, opacity: 0.85 }
   ).addTo(mappaAdriatico);
 }
