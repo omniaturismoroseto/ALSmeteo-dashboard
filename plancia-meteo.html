@@ -768,9 +768,8 @@ function disegnaGrafico(puntoId) {
   const rilevazioniConPunto = rilevazioniOggi
     .map((r) => {
       const dati = r.punti.find((p) => p.punto === puntoId);
-      if (!dati) return null;
-      const oraRif = oraCorrente(dati.orario);
-      return { rilevazione: r.rilevazione, oraRif };
+      if (!dati || !dati.oraRif) return null;
+      return { rilevazione: r.rilevazione, oraRif: dati.oraRif };
     })
     .filter(Boolean);
 
@@ -956,7 +955,7 @@ async function caricaDati() {
   try {
     const [docOggi, rilevazioniSnap, docStazione, docPubbliche] = await Promise.all([
       getDoc(doc(db, "meteoGiornaliero", oggi)),
-      getDocs(query(collection(db, "meteoGiornaliero", oggi, "rilevazioni"), limit(500))),
+      getDocs(query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), limit(500))),
       getDoc(doc(db, "stazioneLocale", "roseto_nord")).catch(() => null),
       getDoc(doc(db, "stazioniPubblicheNetatmo", oggi)).catch(() => null),
     ]);
