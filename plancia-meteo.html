@@ -533,6 +533,7 @@
     <a href="calibrazione-meteo.html">📊 calibrazione</a>
     <a href="storico-meteo.html">📅 storico</a>
     <a href="gestione-lidi.html">🏖️ gestione lidi</a>
+    <a href="vista-adriatico.html">🌊 vista adriatico</a>
     <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
   </div>
 </header>
@@ -953,15 +954,18 @@ async function caricaDati() {
   const oggi = dataOggiRoma();
 
   try {
-    const docOggi = await getDoc(doc(db, "meteoGiornaliero", oggi));
+    const [docOggi, rilevazioniSnap, docStazione, docPubbliche] = await Promise.all([
+      getDoc(doc(db, "meteoGiornaliero", oggi)),
+      getDocs(query(collection(db, "meteoGiornaliero", oggi, "rilevazioni"), limit(500))),
+      getDoc(doc(db, "stazioneLocale", "roseto_nord")).catch(() => null),
+      getDoc(doc(db, "stazioniPubblicheNetatmo", oggi)).catch(() => null),
+    ]);
+
     if (docOggi.exists() && docOggi.data().ultimaRilevazione) {
       ultimoStato = docOggi.data().ultimaRilevazione;
     }
 
     // Nessun orderBy (per evitare indici composti): leggiamo e ordiniamo lato client.
-    const rilevazioniSnap = await getDocs(
-      query(collection(db, "meteoGiornaliero", oggi, "rilevazioni"), limit(500))
-    );
     rilevazioniOggi = rilevazioniSnap.docs
       .map((d) => d.data())
       .sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
@@ -969,19 +973,8 @@ async function caricaDati() {
     document.getElementById("testo-live").textContent = `aggiornato alle ${oraRoma()}`;
     document.getElementById("footer-info").textContent = `${rilevazioniOggi.length} rilevazioni oggi · dati Open-Meteo (ensemble 5 modelli)`;
 
-    try {
-      const docStazione = await getDoc(doc(db, "stazioneLocale", "roseto_nord"));
-      letturaStazione = docStazione.exists() ? docStazione.data().ultimaLettura : null;
-    } catch (e) {
-      letturaStazione = null;
-    }
-
-    try {
-      const docPubbliche = await getDoc(doc(db, "stazioniPubblicheNetatmo", oggi));
-      riepilogoPubbliche = docPubbliche.exists() ? docPubbliche.data().ultimoRiepilogo : null;
-    } catch (e) {
-      riepilogoPubbliche = null;
-    }
+    letturaStazione = docStazione && docStazione.exists() ? docStazione.data().ultimaLettura : null;
+    riepilogoPubbliche = docPubbliche && docPubbliche.exists() ? docPubbliche.data().ultimoRiepilogo : null;
   } catch (errore) {
     console.error(errore);
     document.getElementById("testo-live").textContent = "errore di connessione";

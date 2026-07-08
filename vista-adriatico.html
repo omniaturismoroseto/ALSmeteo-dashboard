@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vista Adriatico — Omnia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A1C24">
+<link rel="apple-touch-icon" href="icona-192.png">
+<style>
+  :root {
+    --bg-abyss: #0A1C24; --bg-panel: #0F2733; --bg-panel-raised: #163542;
+    --ink: #E8F0EE; --ink-muted: #7FA0A8; --ink-faint: #4C6870;
+    --brass: #C99B4A; --brass-dim: #8C6E3B; --line: #234653;
+    --flag-verde: #2F9E44; --flag-giallo: #F0B429; --flag-rosso: #E0393E;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg-abyss); color: var(--ink); font-family: 'Space Grotesk', sans-serif; padding: 0 0 3rem; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  header { padding: 1.5rem 1.25rem 1.25rem; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
+  h1 span { color: var(--brass); }
+  p.sottotitolo { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--ink-muted); }
+  .barra-link { display: flex; gap: 1.1rem; margin-top: 0.7rem; flex-wrap: wrap; align-items: center; }
+  .barra-link a { color: var(--brass); font-size: 0.72rem; text-decoration: none; padding: 0.3rem 0.6rem; border: 1px solid var(--brass-dim); border-radius: 20px; white-space: nowrap; }
+  main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.25rem 0; }
+  .messaggio-stato { padding: 2rem 1rem; text-align: center; color: var(--ink-muted); font-size: 0.85rem; }
+
+  .pannello { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1rem; margin-bottom: 1.5rem; }
+  .sezione-titolo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); margin: 0 0 0.85rem; }
+
+  #mappa-adriatico { width: 100%; height: 62vh; min-height: 380px; border-radius: 8px; }
+  .livello-mappa-scuro { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6); }
+
+  .legenda-corrente { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.7rem; color: var(--ink-muted); align-items: center; }
+  .legenda-corrente .campione { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 0.3rem; vertical-align: middle; }
+
+  .lista-punti { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.7rem; }
+  .scheda-punto {
+    background: var(--bg-panel-raised); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.7rem 0.8rem; font-size: 0.75rem; cursor: pointer;
+  }
+  .scheda-punto:hover { border-color: var(--brass-dim); }
+  .scheda-punto .nome-punto { font-weight: 600; margin-bottom: 0.35rem; color: var(--ink); }
+  .scheda-punto .riga-dato { display: flex; justify-content: space-between; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; margin-top: 0.15rem; }
+  .scheda-punto .riga-dato span:last-child { color: var(--ink); }
+
+  .didascalia-aggiornamento { font-size: 0.7rem; color: var(--ink-faint); margin-top: -0.4rem; margin-bottom: 0.9rem; }
+
+  .schermata-login { position: fixed; inset: 0; background: var(--bg-abyss); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1.25rem; }
+  .scheda-login { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 2rem 1.5rem; width: 100%; max-width: 340px; text-align: center; }
+  .scheda-login h2 { font-size: 1.05rem; margin: 0 0 0.4rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); }
+  .scheda-login p { color: var(--ink-muted); font-size: 0.78rem; margin: 0 0 1.3rem; }
+  .scheda-login input {
+    width: 100%; background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; padding: 0.7rem 0.9rem; border-radius: 8px; margin-bottom: 0.7rem;
+  }
+  .scheda-login input:focus { outline: none; border-color: var(--brass); }
+  .scheda-login button {
+    width: 100%; background: var(--brass); color: #1A1206; border: none; font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600; font-size: 0.9rem; padding: 0.75rem; border-radius: 8px; cursor: pointer; margin-top: 0.4rem;
+  }
+  .login-errore { color: var(--flag-rosso) !important; font-size: 0.75rem !important; margin: 0.8rem 0 0 !important; min-height: 1em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Vista <span>Adriatico</span></h1>
+  <p class="sottotitolo">Correnti (CMEMS Copernicus) e griglia estesa — 20 punti, tutta la costa</p>
+  <div class="barra-link">
+    <a href="plancia-meteo.html">← plancia</a>
+    <a href="storico-meteo.html">📅 storico</a>
+    <a href="gestione-lidi.html">🏖️ gestione lidi</a>
+  </div>
+</header>
+
+<main id="contenuto-principale" style="display:none;">
+  <div class="pannello">
+    <div class="sezione-titolo">Correnti — Mar Adriatico</div>
+    <div id="mappa-adriatico"></div>
+    <div class="legenda-corrente">
+      <span><span class="campione" style="background:#2b83ba;"></span>Corrente debole</span>
+      <span><span class="campione" style="background:#ffffbf;"></span>Moderata</span>
+      <span><span class="campione" style="background:#d7191c;"></span>Forte</span>
+      <span style="margin-left:auto;">Fonte: Copernicus Marine Service (CMEMS), aggiornamento orario</span>
+    </div>
+  </div>
+
+  <div class="pannello">
+    <div class="sezione-titolo">Griglia estesa — 20 punti</div>
+    <p class="didascalia-aggiornamento" id="didascalia-griglia">Caricamento...</p>
+    <div class="lista-punti" id="lista-punti"><div class="messaggio-stato">Caricamento...</div></div>
+  </div>
+</main>
+
+<div id="schermata-login" class="schermata-login">
+  <div class="scheda-login">
+    <h2>Accesso riservato</h2>
+    <p>Vista Adriatico — solo staff autorizzato</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <button id="login-bottone">Accedi</button>
+    <p id="login-errore" class="login-errore"></p>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "699028105579",
+  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
+  measurementId: "G-M3PSWKEYCJ",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let mappaAdriatico = null;
+
+function inizializzaMappa() {
+  if (mappaAdriatico) return;
+
+  mappaAdriatico = L.map("mappa-adriatico", { zoomControl: true, attributionControl: false }).setView([43.3, 15.8], 6);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    subdomains: "abc", maxZoom: 9, className: "livello-mappa-scuro",
+  }).addTo(mappaAdriatico);
+
+  // Correnti CMEMS (Copernicus Marine Service) — tile WMTS pubbliche, nessuna
+  // registrazione richiesta. Dataset: correnti superficiali orarie, 4.2km,
+  // tutto il Mediterraneo (Adriatico compreso).
+  const adesso = new Date();
+  adesso.setUTCMinutes(0, 0, 0);
+  const orarioIso = adesso.toISOString().replace(".000Z", ".000000000Z");
+
+  const layerCorrenti = "MEDSEA_ANALYSISFORECAST_PHY_006_013/cmems_mod_med_phy-cur_anfc_4.2km-2D_PT1H-m/sea_water_velocity";
+  L.tileLayer(
+    `https://wmts.marine.copernicus.eu/teroWmts/?service=WMTS&request=GetTile&version=1.0.0&layer=${layerCorrenti}&tilematrixset=EPSG:3857&tilematrix={z}&tilerow={y}&tilecol={x}&time=${orarioIso}&STYLE=vectorStyle:solidAndVector,cmap:thermal`,
+    { minZoom: 4, maxZoom: 9, opacity: 0.85 }
+  ).addTo(mappaAdriatico);
+}
+
+function formattaValore(valore, unita, decimali = 1) {
+  if (valore === null || valore === undefined) return "n/d";
+  return `${valore.toFixed(decimali)}${unita}`;
+}
+
+async function caricaGriglia() {
+  const contenitoreLista = document.getElementById("lista-punti");
+  const didascalia = document.getElementById("didascalia-griglia");
+
+  try {
+    const snap = await getDoc(doc(db, "grigliaAdriatico", "ultima"));
+    if (!snap.exists()) {
+      contenitoreLista.innerHTML = `<div class="messaggio-stato">Nessun dato ancora disponibile — la prima raccolta parte in cima alla prossima ora.</div>`;
+      return;
+    }
+
+    const dati = snap.data();
+    const oraAggiornamento = new Date(dati.generatoIl).toLocaleString("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+    didascalia.textContent = `Ultimo aggiornamento: ${oraAggiornamento} — ${dati.punti.length} punti.`;
+
+    contenitoreLista.innerHTML = dati.punti.map((p) => `
+      <div class="scheda-punto" data-lat="${p.lat}" data-lon="${p.lon}" data-nome="${p.nome}">
+        <div class="nome-punto">${p.nome}</div>
+        <div class="riga-dato"><span>Vento</span><span>${formattaValore(p.ventoNodi, " kn")}</span></div>
+        <div class="riga-dato"><span>Onda</span><span>${formattaValore(p.altezzaOndaM, " m")}</span></div>
+        <div class="riga-dato"><span>Corrente</span><span>${formattaValore(p.correnteNodi, " kn")}</span></div>
+        <div class="riga-dato"><span>Marea</span><span>${formattaValore(p.mareaM, " m")}</span></div>
+      </div>
+    `).join("");
+
+    dati.punti.forEach((p) => {
+      if (p.lat === undefined || p.lon === undefined) return;
+      const popup = `
+        <b>${p.nome}</b><br>
+        Vento: ${formattaValore(p.ventoNodi, " kn")} · Raffica: ${formattaValore(p.rafficaNodi, " kn")}<br>
+        Onda: ${formattaValore(p.altezzaOndaM, " m")} (${formattaValore(p.periodoOndaS, "s", 0)})<br>
+        Corrente: ${formattaValore(p.correnteNodi, " kn")}<br>
+        Marea: ${formattaValore(p.mareaM, " m")} · Mare: ${formattaValore(p.temperaturaMareC, "°C", 1)}
+      `;
+      L.circleMarker([p.lat, p.lon], { radius: 6, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.85, weight: 1.5 })
+        .addTo(mappaAdriatico)
+        .bindPopup(popup);
+    });
+
+    contenitoreLista.querySelectorAll(".scheda-punto").forEach((scheda) => {
+      scheda.addEventListener("click", () => {
+        const lat = parseFloat(scheda.getAttribute("data-lat"));
+        const lon = parseFloat(scheda.getAttribute("data-lon"));
+        if (mappaAdriatico) mappaAdriatico.setView([lat, lon], 8);
+      });
+    });
+  } catch (errore) {
+    contenitoreLista.innerHTML = `<div class="messaggio-stato">Errore nel caricamento: ${errore.message}</div>`;
+  }
+}
+
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+onAuthStateChanged(auth, (utente) => {
+  document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("contenuto-principale").style.display = utente ? "block" : "none";
+  if (utente) {
+    inizializzaMappa();
+    caricaGriglia();
+  }
+});
+
+document.getElementById("login-bottone").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const erroreEl = document.getElementById("login-errore");
+  erroreEl.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (errore) {
+    erroreEl.textContent = "Email o password non corretti.";
+  }
+});
+
+document.getElementById("login-password").addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") document.getElementById("login-bottone").click();
+});
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  }
+</script>
+
+</body>
+</html>
