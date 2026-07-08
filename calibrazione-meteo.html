@@ -225,7 +225,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // Stessa configurazione usata in plancia-meteo.html / osservazione-manuale.html.
@@ -241,7 +241,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 
 const NOMI_PUNTI = { roseto_nord: "Roseto Nord", roseto_sud: "Roseto Sud", pineto: "Pineto", offshore: "Offshore" };
 const ORDINE_PUNTI = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
