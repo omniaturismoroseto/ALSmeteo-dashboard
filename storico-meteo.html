@@ -230,8 +230,28 @@ function ultimiNGiorni(n) {
   return giorni;
 }
 
+async function attesa(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Un intoppo di rete momentaneo (frequente su connessioni instabili) non deve
+// lasciare la pagina con "nessun dato" — riprovo un paio di volte prima di
+// arrendermi davvero.
+async function conRiprovaRete(funzione, tentativi = 3) {
+  for (let tentativo = 1; tentativo <= tentativi; tentativo++) {
+    try {
+      return await funzione();
+    } catch (errore) {
+      const eRete = errore.code === "unavailable" || /offline|client is offline/i.test(errore.message || "");
+      if (!eRete || tentativo === tentativi) throw errore;
+      console.warn(`Lettura Firestore fallita (rete instabile), riprovo (${tentativo}/${tentativi})...`);
+      await attesa(tentativo * 1000);
+    }
+  }
+}
+
 async function caricaRilevazioniGiorno(data) {
-  const snap = await getDocs(query(collection(db, "meteoGiornaliero", data, "rilevazioni"), limit(500)));
+  const snap = await conRiprovaRete(() => getDocs(query(collection(db, "meteoGiornaliero", data, "rilevazioni"), limit(500))));
   return snap.docs.map((d) => d.data()).sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
 }
 
@@ -345,7 +365,7 @@ function disegnaTorta(idCanvas, chiaveStato, etichette, valori, colori) {
 }
 
 async function caricaStatisticheCumulative() {
-  const docSnap = await getDoc(doc(db, "statisticheStoriche", "cumulativo"));
+  const docSnap = await conRiprovaRete(() => getDoc(doc(db, "statisticheStoriche", "cumulativo")));
   if (!docSnap.exists()) {
     document.getElementById("pannello-torte").innerHTML = `<div class="messaggio-stato">Nessuna statistica cumulativa ancora disponibile.</div>`;
     return;
