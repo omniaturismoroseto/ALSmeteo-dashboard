@@ -600,7 +600,6 @@ let framesRadar = [];
 let numeroFrameNowcastRadar = 0;
 let posizioneAnimazioneRadar = 0;
 let hostRadar = "";
-let layerSatelliteSelezionato = "rgb_airmass";
 let puntoSelezionato = "roseto_nord";
 let grafico = null;
 
@@ -858,31 +857,11 @@ function renderBannerEventi(eventi, tendenzeMare, fronti) {
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
 }
 
-function urlImmagineSatellite(layer) {
-  // EUMETView WMS — pubblico, nessuna registrazione richiesta.
-  const bbox = "12.5,41.5,16.0,44.0"; // lon_min,lat_min,lon_max,lat_max — Adriatico centrale
-  const params = new URLSearchParams({
-    service: "WMS",
-    version: "1.1.1",
-    request: "GetMap",
-    layers: `msg_fes:${layer}`,
-    bbox,
-    width: "700",
-    height: "500",
-    srs: "EPSG:4326",
-    format: "image/png",
-    _: Date.now(), // rompe la cache del browser: ogni richiesta è considerata "nuova"
-  });
-  return `https://view.eumetsat.int/geoserver/wms?${params.toString()}`;
-}
 
-const LAYER_SATELLITE = [
-  { id: "rgb_airmass", nome: "Airmass", nota: "Masse d'aria e dinamica dei fronti — lettura tecnica, non colori naturali." },
-];
 
-function renderPannelloSatellite() {
+function notaComunitaria() {
   const rp = riepilogoPubbliche;
-  const rigaComunitaria = rp
+  return rp
     ? `<p class="satellite-nota" style="color:var(--ink-muted); margin-top:0.9rem; padding-top:0.7rem; border-top:1px solid var(--line);">
         📡 Rete Netatmo pubblica in zona: ${rp.numeroStazioniTotali} stazioni attive (${rp.numeroStazioniConVento} con anemometro) ·
         ${rp.temperaturaMedianaC !== null ? "temp. mediana " + rp.temperaturaMedianaC.toFixed(1) + "°C" : ""}
@@ -890,21 +869,6 @@ function renderPannelloSatellite() {
         — dato di contesto, non usato per gli alert di sicurezza.
       </p>`
     : "";
-
-  const layerAttuale = LAYER_SATELLITE.find((l) => l.id === layerSatelliteSelezionato) || LAYER_SATELLITE[0];
-
-  return `
-    <div class="pannello-satellite">
-      <div class="sezione-titolo">
-        <span>Satellite — Adriatico centrale</span>
-      </div>
-      ${LAYER_SATELLITE.length > 1 ? `<div class="selettore-punti" id="selettore-satellite" style="margin-bottom:0.7rem;">
-        ${LAYER_SATELLITE.map((l) => `<button class="pillola ${l.id === layerSatelliteSelezionato ? "attiva" : ""}" data-layer="${l.id}">${l.nome}</button>`).join("")}
-      </div>` : ""}
-      <img class="satellite-immagine" id="immagine-satellite" src="${urlImmagineSatellite(layerAttuale.id)}" alt="Immagine satellitare EUMETSAT dell'Adriatico centrale" loading="lazy" />
-      <p class="satellite-nota">EUMETView (EUMETSAT) — aggiornamento ogni 15 min circa. ${layerAttuale.nota}</p>
-      ${rigaComunitaria}
-    </div>`;
 }
 
 // --- ORCHESTRAZIONE --------------------------------------------------------
@@ -934,8 +898,8 @@ function renderTutto() {
         <span class="radar-tempo" id="radar-tempo">caricamento radar...</span>
       </div>
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
-    </div>` +
-    renderPannelloSatellite();
+      ${notaComunitaria()}
+    </div>`;
 
   inizializzaRadar();
 
@@ -1088,18 +1052,6 @@ function inizializzaRadar() {
   document.getElementById("radar-play")?.addEventListener("click", alternaAnimazioneRadar);
   document.getElementById("radar-prev")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(-1); });
   document.getElementById("radar-next")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(1); });
-
-  document.querySelectorAll("#selettore-satellite [data-layer]").forEach((el) => {
-    el.addEventListener("click", () => {
-      layerSatelliteSelezionato = el.getAttribute("data-layer");
-      document.querySelectorAll("#selettore-satellite [data-layer]").forEach((b) => b.classList.remove("attiva"));
-      el.classList.add("attiva");
-      const layerInfo = LAYER_SATELLITE.find((l) => l.id === layerSatelliteSelezionato);
-      document.getElementById("immagine-satellite").src = urlImmagineSatellite(layerSatelliteSelezionato);
-      document.querySelector(".pannello-satellite .satellite-nota").textContent =
-        `EUMETView (EUMETSAT) — aggiornamento ogni 15 min circa. ${layerInfo.nota}`;
-    });
-  });
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);

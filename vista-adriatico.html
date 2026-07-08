@@ -81,13 +81,16 @@
 
 <main id="contenuto-principale" style="display:none;">
   <div class="pannello">
-    <div class="sezione-titolo">Correnti — Mar Adriatico</div>
+    <div class="sezione-titolo">Vento e correnti — Mar Adriatico</div>
     <div id="mappa-adriatico"></div>
     <div class="legenda-corrente">
-      <span><span class="campione" style="background:#2b83ba;"></span>Corrente debole</span>
-      <span><span class="campione" style="background:#ffffbf;"></span>Moderata</span>
-      <span><span class="campione" style="background:#d7191c;"></span>Forte</span>
-      <span style="margin-left:auto;">Fonte: Copernicus Marine Service (CMEMS), aggiornamento orario</span>
+      <span><span class="campione" style="background:#E8F0EE;"></span>&lt;5 kn</span>
+      <span><span class="campione" style="background:#7FC4D8;"></span>5-10 kn</span>
+      <span><span class="campione" style="background:#2F9E44;"></span>10-15 kn</span>
+      <span><span class="campione" style="background:#F0B429;"></span>15-20 kn</span>
+      <span><span class="campione" style="background:#E0393E;"></span>20-25 kn</span>
+      <span><span class="campione" style="background:#B0189E;"></span>&gt;25 kn</span>
+      <span style="margin-left:auto;">Le frecce indicano dove soffia il vento — dati Open-Meteo, aggiornamento orario</span>
     </div>
   </div>
 
@@ -153,6 +156,35 @@ function inizializzaMappa() {
   ).addTo(mappaAdriatico);
 }
 
+// Scala colori del vento (nodi) — stessa logica di una mappa a campo
+// vettoriale: freccia ruotata verso dove soffia il vento, colore per intensità.
+function coloreVento(nodi) {
+  if (nodi === null || nodi === undefined) return "#4C6870";
+  if (nodi < 5) return "#E8F0EE";
+  if (nodi < 10) return "#7FC4D8";
+  if (nodi < 15) return "#2F9E44";
+  if (nodi < 20) return "#F0B429";
+  if (nodi < 25) return "#E0393E";
+  return "#B0189E";
+}
+
+function iconaVento(direzioneGradi, ventoNodi) {
+  const colore = coloreVento(ventoNodi);
+  // direzioneGradi è "da dove viene" il vento; la freccia deve puntare verso
+  // dove soffia, quindi si ruota di +180°.
+  const rotazione = direzioneGradi !== null && direzioneGradi !== undefined ? (direzioneGradi + 180) % 360 : 0;
+  return L.divIcon({
+    className: "",
+    html: `<div style="transform: rotate(${rotazione}deg); width:26px; height:26px;">
+      <svg viewBox="0 0 24 24" width="26" height="26">
+        <path d="M12 2 L18 15 L12 11.5 L6 15 Z" fill="${colore}" stroke="#0A1C24" stroke-width="1"/>
+      </svg>
+    </div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}
+
 function formattaValore(valore, unita, decimali = 1) {
   if (valore === null || valore === undefined) return "n/d";
   return `${valore.toFixed(decimali)}${unita}`;
@@ -192,7 +224,7 @@ async function caricaGriglia() {
         Corrente: ${formattaValore(p.correnteNodi, " kn")}<br>
         Marea: ${formattaValore(p.mareaM, " m")} · Mare: ${formattaValore(p.temperaturaMareC, "°C", 1)}
       `;
-      L.circleMarker([p.lat, p.lon], { radius: 6, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.85, weight: 1.5 })
+      L.marker([p.lat, p.lon], { icon: iconaVento(p.direzioneGradi, p.ventoNodi) })
         .addTo(mappaAdriatico)
         .bindPopup(popup);
     });
