@@ -251,7 +251,7 @@ async function conRiprovaRete(funzione, tentativi = 3) {
 }
 
 async function caricaRilevazioniGiorno(data) {
-  const snap = await conRiprovaRete(() => getDocs(query(collection(db, "meteoGiornaliero", data, "rilevazioni"), limit(500))));
+  const snap = await conRiprovaRete(() => getDocs(query(collection(db, "meteoGiornaliero", data, "riepilogoOre"), limit(500))));
   return snap.docs.map((d) => d.data()).sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
 }
 
@@ -290,7 +290,7 @@ async function caricaRiepilogoSettimana() {
       if (r.fronti && r.fronti.length > 0) fronteRilevato = true;
 
       for (const p of r.punti) {
-        const oraMare = trovaOraVicinaA(p.mare, r.generatoIl);
+        const oraMare = p.mareRif;
         if (oraMare && oraMare.altezza_onda_m !== null && oraMare.altezza_onda_m !== undefined) {
           sommaOnda += oraMare.altezza_onda_m; campioniOnda++;
         }
@@ -419,8 +419,7 @@ function disegnaTortaDirezione(puntoId) {
 }
 function trovaOraPerPunto(rilevazione, puntoId) {
   const punto = rilevazione.punti.find((p) => p.punto === puntoId);
-  if (!punto) return null;
-  return trovaOraVicinaA(punto.orario, rilevazione.generatoIl);
+  return punto ? punto.oraRif : null;
 }
 
 // Come oraCorrente sulla plancia, ma parametrizzata su un istante specifico
