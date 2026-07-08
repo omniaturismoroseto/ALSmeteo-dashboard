@@ -204,7 +204,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
 const NOMI_PUNTI_ORDINE = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
 const LIVELLI_BANDIERA = { verde: 0, giallo: 1, rosso: 2 };

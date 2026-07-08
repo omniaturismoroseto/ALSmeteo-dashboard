@@ -583,7 +583,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
 const NOMI_PUNTI_ORDINE = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
 const EMOJI_BANDIERA = { verde: "badge-verde", giallo: "badge-giallo", rosso: "badge-rosso", fuori_orario: "badge-fuori_orario" };

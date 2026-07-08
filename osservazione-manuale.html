@@ -288,7 +288,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
 // --- AUTENTICAZIONE: il form si sblocca solo dopo il login ---------------
 const auth = getAuth(app);
