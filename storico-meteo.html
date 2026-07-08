@@ -251,8 +251,17 @@ async function conRiprovaRete(funzione, tentativi = 3) {
 }
 
 async function caricaRilevazioniGiorno(data) {
-  const snap = await conRiprovaRete(() => getDocs(query(collection(db, "meteoGiornaliero", data, "riepilogoOre"), limit(500))));
-  return snap.docs.map((d) => d.data()).sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
+  const snapLeggero = await conRiprovaRete(() => getDocs(query(collection(db, "meteoGiornaliero", data, "riepilogoOre"), limit(500))));
+  if (!snapLeggero.empty) {
+    return snapLeggero.docs.map((d) => d.data()).sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
+  }
+
+  // Ripiego per i giorni precedenti all'introduzione di "riepilogoOre":
+  // niente dato leggero salvato, quindi guardo nella vecchia collezione
+  // completa — più pesante, ma solo per lo storico ormai passato, non per
+  // i giorni correnti (che hanno sempre "riepilogoOre" da qui in avanti).
+  const snapCompleto = await conRiprovaRete(() => getDocs(query(collection(db, "meteoGiornaliero", data, "rilevazioni"), limit(500))));
+  return snapCompleto.docs.map((d) => d.data()).sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
 }
 
 function formattaDataLeggibile(data) {
@@ -290,7 +299,7 @@ async function caricaRiepilogoSettimana() {
       if (r.fronti && r.fronti.length > 0) fronteRilevato = true;
 
       for (const p of r.punti) {
-        const oraMare = p.mareRif;
+        const oraMare = p.mareRif || (p.mare ? trovaOraVicinaA(p.mare, r.generatoIl) : null);
         if (oraMare && oraMare.altezza_onda_m !== null && oraMare.altezza_onda_m !== undefined) {
           sommaOnda += oraMare.altezza_onda_m; campioniOnda++;
         }
@@ -419,7 +428,10 @@ function disegnaTortaDirezione(puntoId) {
 }
 function trovaOraPerPunto(rilevazione, puntoId) {
   const punto = rilevazione.punti.find((p) => p.punto === puntoId);
-  return punto ? punto.oraRif : null;
+  if (!punto) return null;
+  if (punto.oraRif) return punto.oraRif; // documenti nuovi (riepilogoOre)
+  if (punto.orario) return trovaOraVicinaA(punto.orario, rilevazione.generatoIl); // documenti vecchi (rilevazioni)
+  return null;
 }
 
 // Come oraCorrente sulla plancia, ma parametrizzata su un istante specifico
