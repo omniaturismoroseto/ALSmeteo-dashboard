@@ -172,6 +172,11 @@
       </div>
     </div>
   </div>
+  <div class="pannello">
+    <div class="sezione-titolo">Andamento stagionale — Indice UV massimo giornaliero</div>
+    <p id="nota-uv-stagione" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento...</p>
+    <div class="grafico-contenitore"><canvas id="grafico-uv-stagione"></canvas></div>
+  </div>
 </main>
 
 <div id="schermata-login" class="schermata-login">
@@ -281,6 +286,12 @@ async function caricaRiepilogoSettimana() {
       continue;
     }
 
+    // uvMaxOggi vive sul documento giorno (non nella sottocollezione), letto
+    // a parte: lo calcola già il server ad ogni rilevazione, non serve
+    // rifare la scansione qui.
+    const docGiornoSnap = await conRiprovaRete(() => getDoc(doc(db, "meteoGiornaliero", data)));
+    const uvMaxGiorno = docGiornoSnap.exists() ? docGiornoSnap.data().uvMaxOggi ?? null : null;
+
     let bandieraPeggiore = { colore: "verde" };
     let ventoMax = 0;
     let garbinoRilevato = false;
@@ -310,7 +321,7 @@ async function caricaRiepilogoSettimana() {
     }
 
     righe.push({
-      data, senzaDati: false, bandieraPeggiore, ventoMax, garbinoRilevato, fronteRilevato,
+      data, senzaDati: false, bandieraPeggiore, ventoMax, garbinoRilevato, fronteRilevato, uvMax: uvMaxGiorno,
       numeroRilevazioni: rilevazioni.length,
       ondaMedia: campioniOnda > 0 ? sommaOnda / campioniOnda : null,
       correnteMedia: campioniCorrente > 0 ? sommaCorrente / campioniCorrente : null,
@@ -320,14 +331,15 @@ async function caricaRiepilogoSettimana() {
   const contenitore = document.getElementById("tabella-settimana");
   contenitore.innerHTML = `
     <table>
-      <thead><tr><th>Giorno</th><th>Bandiera peggiore</th><th>Vento max</th><th>Onda media</th><th>Corrente media</th><th>Garbino</th><th>Fronti</th><th>Rilevazioni</th></tr></thead>
+      <thead><tr><th>Giorno</th><th>Bandiera peggiore</th><th>Vento max</th><th>UV max</th><th>Onda media</th><th>Corrente media</th><th>Garbino</th><th>Fronti</th><th>Rilevazioni</th></tr></thead>
       <tbody>
         ${righe.map((r) => r.senzaDati
-          ? `<tr><td class="mono">${formattaDataLeggibile(r.data)}</td><td colspan="7" style="color:var(--ink-faint)">nessun dato</td></tr>`
+          ? `<tr><td class="mono">${formattaDataLeggibile(r.data)}</td><td colspan="8" style="color:var(--ink-faint)">nessun dato</td></tr>`
           : `<tr class="riga-giorno" data-data="${r.data}">
               <td class="mono">${formattaDataLeggibile(r.data)}</td>
               <td><span class="badge-bandiera ${EMOJI_BANDIERA[r.bandieraPeggiore.colore]}">${r.bandieraPeggiore.colore}</span></td>
               <td class="mono">${r.ventoMax.toFixed(1)} kn</td>
+              <td class="mono">${r.uvMax !== null && r.uvMax !== undefined ? r.uvMax.toFixed(1) : "—"}</td>
               <td class="mono">${r.ondaMedia !== null ? r.ondaMedia.toFixed(1) + " m" : "—"}</td>
               <td class="mono">${r.correnteMedia !== null ? r.correnteMedia.toFixed(1) + " kn" : "—"}</td>
               <td>${r.garbinoRilevato ? "⚠️ sì" : "—"}</td>
@@ -406,6 +418,66 @@ async function caricaStatisticheCumulative() {
   );
 
   disegnaTortaDirezione(puntoSelezionatoDettaglio);
+}
+
+// --- ANDAMENTO STAGIONALE UV -----------------------------------------------
+// Un solo giro su tutta la collezione meteoGiornaliero (un doc per giorno
+// dall'inizio della stagione): leggero perché legge solo il documento
+// "riepilogo", non le sottocollezioni orarie, quindi resta economico anche
+// con mesi di storico accumulato.
+const COLORE_PER_LIVELLO_UV = (v) => (v >= 11 ? "#9B5DE5" : v >= 8 ? "#E0393E" : v >= 6 ? "#E8791A" : v >= 3 ? "#F0B429" : "#2F9E44");
+let graficoUVStagione = null;
+
+async function caricaAndamentoUV() {
+  const nota = document.getElementById("nota-uv-stagione");
+  try {
+    const snap = await conRiprovaRete(() => getDocs(collection(db, "meteoGiornaliero")));
+    const giorni = snap.docs
+      .map((d) => ({ data: d.id, uvMax: d.data().uvMaxOggi }))
+      .filter((g) => g.uvMax !== null && g.uvMax !== undefined)
+      .sort((a, b) => a.data.localeCompare(b.data));
+
+    if (giorni.length === 0) {
+      if (nota) nota.textContent = "Nessun dato UV ancora disponibile — la raccolta è iniziata di recente.";
+      return;
+    }
+
+    if (nota) nota.textContent = `${giorni.length} giorni con dato UV, dal ${formattaDataLeggibile(giorni[0].data)} a oggi.`;
+
+    const canvas = document.getElementById("grafico-uv-stagione");
+    if (!canvas) return;
+    if (graficoUVStagione) graficoUVStagione.destroy();
+
+    graficoUVStagione = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: giorni.map((g) => formattaDataLeggibile(g.data)),
+        datasets: [{
+          label: "UV massimo",
+          data: giorni.map((g) => g.uvMax),
+          borderColor: "#C99B4A",
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: giorni.map((g) => COLORE_PER_LIVELLO_UV(g.uvMax)),
+          pointBorderWidth: 0,
+          fill: false,
+          tension: 0.25,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#7FA0A8", font: { family: "IBM Plex Mono", size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "#1A3641" } },
+          y: { suggestedMin: 0, ticks: { color: "#7FA0A8", font: { family: "IBM Plex Mono", size: 10 } }, grid: { color: "#1A3641" }, title: { display: true, text: "indice UV", color: "#7FA0A8", font: { size: 10 } } },
+        },
+      },
+    });
+  } catch (errore) {
+    console.error(errore);
+    if (nota) nota.textContent = "Errore nel caricamento dell'andamento UV.";
+  }
 }
 
 function disegnaTortaDirezione(puntoId) {
@@ -575,6 +647,7 @@ onAuthStateChanged(auth, (utente) => {
     caricaRiepilogoSettimana();
     caricaDettaglioGiorno(ieriData);
     caricaStatisticheCumulative();
+    caricaAndamentoUV();
   }
 });
 

@@ -29,6 +29,13 @@
     --flag-giallo-bg: #3D2F0C;
     --flag-rosso: #E0393E;
     --flag-rosso-bg: #3D1416;
+    --uv-basso: #2F9E44;
+    --uv-moderato: #F0B429;
+    --uv-alto: #E8791A;
+    --uv-alto-bg: #3D2410;
+    --uv-molto-alto: #E0393E;
+    --uv-estremo: #9B5DE5;
+    --uv-estremo-bg: #2B1A3D;
   }
 
   * { box-sizing: border-box; }
@@ -400,6 +407,94 @@
     margin-bottom: 2rem;
   }
 
+  .pannello-uv {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    margin-bottom: 1.4rem;
+  }
+
+  .uv-corpo {
+    display: flex;
+    align-items: center;
+    gap: 1.3rem;
+    flex-wrap: wrap;
+  }
+
+  .uv-valore-blocco {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 76px;
+  }
+
+  .uv-valore-grande {
+    font-size: 2.1rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .uv-badge-livello {
+    font-size: 0.62rem;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .uv-scala-blocco {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .uv-scala {
+    position: relative;
+    display: flex;
+    height: 10px;
+    border-radius: 6px;
+    overflow: visible;
+  }
+
+  .uv-scala-segmento {
+    flex: 1;
+    height: 100%;
+  }
+
+  .uv-scala-segmento:first-child { border-radius: 6px 0 0 6px; }
+  .uv-scala-segmento:last-child { border-radius: 0 6px 6px 0; }
+
+  .uv-marcatore {
+    position: absolute;
+    top: -4px;
+    width: 3px;
+    height: 18px;
+    background: var(--ink);
+    border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+  }
+
+  .uv-scala-etichette {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--ink-faint);
+    margin-top: 0.35rem;
+  }
+
+  .uv-footer {
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+    margin-top: 0.8rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--line);
+  }
+
   .satellite-immagine {
     width: 100%;
     border-radius: 6px;
@@ -602,6 +697,7 @@ let posizioneAnimazioneRadar = 0;
 let hostRadar = "";
 let puntoSelezionato = "roseto_nord";
 let grafico = null;
+let uvMaxOggiGlobale = null;
 
 function dataOggiRoma() {
   const formattatore = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" });
@@ -673,6 +769,52 @@ function oraCorrente(orario) {
     if (d < distanzaMin) { distanzaMin = d; migliore = o; }
   }
   return migliore;
+}
+
+// --- CLASSIFICAZIONE RISCHIO UV (scala OMS) -------------------------------
+function livelloRischioUV(valore) {
+  if (valore === null || valore === undefined) {
+    return { etichetta: "n/d", colore: "var(--ink-faint)", sfondo: "var(--bg-panel-raised)" };
+  }
+  if (valore < 3) return { etichetta: "basso", colore: "var(--uv-basso)", sfondo: "var(--flag-verde-bg)" };
+  if (valore < 6) return { etichetta: "moderato", colore: "var(--uv-moderato)", sfondo: "var(--flag-giallo-bg)" };
+  if (valore < 8) return { etichetta: "alto", colore: "var(--uv-alto)", sfondo: "var(--uv-alto-bg)" };
+  if (valore < 11) return { etichetta: "molto alto", colore: "var(--uv-molto-alto)", sfondo: "var(--flag-rosso-bg)" };
+  return { etichetta: "estremo", colore: "var(--uv-estremo)", sfondo: "var(--uv-estremo-bg)" };
+}
+
+// --- RENDER PANNELLO UV ----------------------------------------------------
+function renderPannelloUV(ultimaRilevazione, uvMaxOggi) {
+  const uv = ultimaRilevazione.uvConsensoMax;
+  const rischio = livelloRischioUV(uv);
+  const percentualeScala = uv !== null && uv !== undefined ? Math.max(0, Math.min(100, (uv / 12) * 100)) : null;
+
+  return `
+    <div class="pannello-uv">
+      <div class="sezione-titolo"><span>Indice UV</span></div>
+      <div class="uv-corpo">
+        <div class="uv-valore-blocco">
+          <span class="uv-valore-grande mono" style="color:${rischio.colore}">${uv !== null && uv !== undefined ? uv.toFixed(1) : "—"}</span>
+          <span class="uv-badge-livello" style="background:${rischio.sfondo}; color:${rischio.colore}">${rischio.etichetta}</span>
+        </div>
+        <div class="uv-scala-blocco">
+          <div class="uv-scala">
+            <div class="uv-scala-segmento" style="background:var(--uv-basso)"></div>
+            <div class="uv-scala-segmento" style="background:var(--uv-moderato)"></div>
+            <div class="uv-scala-segmento" style="background:var(--uv-alto)"></div>
+            <div class="uv-scala-segmento" style="background:var(--uv-molto-alto)"></div>
+            <div class="uv-scala-segmento" style="background:var(--uv-estremo)"></div>
+            ${percentualeScala !== null ? `<div class="uv-marcatore" style="left:${percentualeScala}%"></div>` : ""}
+          </div>
+          <div class="uv-scala-etichette mono">
+            <span>0</span><span>3</span><span>6</span><span>8</span><span>11+</span>
+          </div>
+        </div>
+      </div>
+      <div class="uv-footer mono">
+        ${uv !== null && uv !== undefined && uv >= 8 ? "⚠ protezione massima consigliata (crema alta, ombra ore centrali) · " : ""}picco di oggi: ${uvMaxOggi !== null && uvMaxOggi !== undefined ? uvMaxOggi.toFixed(1) : "—"}
+      </div>
+    </div>`;
 }
 
 // --- RENDER CARTE PUNTI ---------------------------------------------------
@@ -881,6 +1023,7 @@ function renderTutto() {
 
   contenuto.innerHTML =
     renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti) +
+    renderPannelloUV(ultimoStato, uvMaxOggiGlobale) +
     renderPunti(ultimoStato) +
     renderSelettoreEGrafico(ultimoStato) +
     `<div class="pannello-radar">
@@ -926,6 +1069,7 @@ async function caricaDati() {
 
     if (docOggi.exists() && docOggi.data().ultimaRilevazione) {
       ultimoStato = docOggi.data().ultimaRilevazione;
+      uvMaxOggiGlobale = docOggi.data().uvMaxOggi ?? null;
     }
 
     // Nessun orderBy (per evitare indici composti): leggiamo e ordiniamo lato client.
