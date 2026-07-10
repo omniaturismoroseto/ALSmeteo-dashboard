@@ -108,7 +108,12 @@
   }
 
   /* --- Mappa ------------------------------------------------------------ */
-  #mappa-previsione { height: 440px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-panel-raised); }
+  #mappa-previsione { height: 440px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-panel-raised); position: relative; }
+  .canvas-campo-vento { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+  .legenda-campo { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.7rem; font-size: 0.68rem; color: var(--ink-muted); }
+  .barra-legenda-campo { flex: 1; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #3d4ea1, #2f80b0, #2fae7a, #8ec73f, #e8c93c, #e2723a, #b93c96); }
+  .barra-legenda-campo-etichette { display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--ink-faint); margin-top: 0.15rem; }
 
   .marcatore-core {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -225,6 +230,14 @@
     </div>
     <input type="range" id="slider-tempo" min="0" max="0" value="0" step="1">
     <div id="mappa-previsione"></div>
+    <div class="legenda-campo">
+      <span class="mono">kt</span>
+      <div style="flex:1;">
+        <div class="barra-legenda-campo"></div>
+        <div class="barra-legenda-campo-etichette"><span>0</span><span>5</span><span>10</span><span>20</span><span>30</span><span>40</span><span>60+</span></div>
+      </div>
+    </div>
+    <p class="nota-disclaimer" style="margin-top:0.3rem;">Campo interpolato tra i 32 punti reali (zona Abruzzo) — non un dato di modello a griglia: è una stima smussata, più affidabile vicino ai marcatori che lontano da essi.</p>
     <div class="legenda">
       <div><span class="pallino" style="background:var(--flag-verde)"></span>Regolare (vento &lt; 10 nodi)</div>
       <div><span class="pallino" style="background:var(--flag-giallo)"></span>Moderato (10-15 nodi o raffiche ≥18)</div>
@@ -281,6 +294,24 @@ const SOGLIA_VENTO_ROSSO = 16, SOGLIA_RAFFICA_ROSSO = 25;
 const SOGLIA_VENTO_GIALLO = 10, SOGLIA_RAFFICA_GIALLO = 18;
 const SOGLIA_PIOGGIA_PERC = 60;
 const TOLLERANZA_MATCH_MS = 40 * 60 * 1000; // 40 minuti di tolleranza per il match orario dei punti estesi
+
+// --- Zona Abruzzo: bbox della mappa + margine per includere punti utili
+// all'interpolazione (Giulianova a nord, Vasto/Termoli a sud) senza
+// trascinarci dentro Trieste o Bari, che falserebbero il campo interpolato.
+const ABRUZZO_BOUNDS = L.latLngBounds([41.75, 13.75], [42.95, 14.65]);
+const ABRUZZO_MARGINE_INTERPOLAZIONE = 0.5; // gradi, per non far sparire il campo ai bordi
+
+// --- Stato del campo colorato continuo + particelle -------------------------
+let paneCampo = null;
+let canvasCampo = null;       // colore statico, ridisegnato solo al cambio ora/vista
+let ctxCampo = null;
+let canvasParticelle = null;  // scia animata, ridisegnata ogni frame
+let ctxParticelle = null;
+let campoVettoriale = null;   // { cols, rows, cellPx, dati: Float32Array[vx,vy,speedKt] per cella, origineX, origineY }
+let particelle = [];
+const NUM_PARTICELLE = 550;
+let animazioneCampoAttiva = false;
+let ultimoFrameMs = 0;
 
 // --- Stato globale --------------------------------------------------------
 let timelineMaster = [];     // array di Date, la "colonna vertebrale" temporale (dai punti core, 72h)
@@ -435,8 +466,21 @@ async function caricaPrevisione() {
 
 // --- Mappa ------------------------------------------------------------------
 function inizializzaMappa() {
-  mappa = L.map("mappa-previsione", { zoomControl: true, attributionControl: false }).setView([42.75, 14.3], 9);
+  mappa = L.map("mappa-previsione", { zoomControl: true, attributionControl: false, maxBounds: ABRUZZO_BOUNDS.pad(0.15), minZoom: 9 });
+  mappa.fitBounds(ABRUZZO_BOUNDS);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19 }).addTo(mappa);
+
+  // Pane dedicato al campo colorato: sopra le tile, sotto i marcatori, così
+  // resta cliccabile tutto quello che sta sopra.
+  paneCampo = mappa.createPane("campoVento");
+  paneCampo.style.zIndex = 350;
+  paneCampo.style.pointerEvents = "none";
+
+  canvasCampo = L.DomUtil.create("canvas", "canvas-campo-vento", paneCampo);
+  ctxCampo = canvasCampo.getContext("2d");
+  canvasParticelle = L.DomUtil.create("canvas", "canvas-campo-vento", paneCampo);
+  ctxParticelle = canvasParticelle.getContext("2d");
+  ridimensionaCanvasCampo();
 
   for (const p of puntiCore) {
     const icona = L.divIcon({
@@ -458,6 +502,24 @@ function inizializzaMappa() {
     m.bindPopup(`<div class="popup-punto" id="popup-${p.id}"></div>`);
     m.on("click", () => selezionaPunto(p.id));
     marcatori[p.id] = m;
+  }
+
+  mappa.on("moveend zoomend", () => { ridimensionaCanvasCampo(); ricalcolaCampo(); });
+  window.addEventListener("resize", () => { ridimensionaCanvasCampo(); ricalcolaCampo(); });
+
+  avviaAnimazioneParticelle();
+}
+
+function ridimensionaCanvasCampo() {
+  if (!mappa || !canvasCampo || !canvasParticelle) return;
+  const dimensioni = mappa.getSize();
+  const origine = mappa.containerPointToLayerPoint([0, 0]);
+  for (const cv of [canvasCampo, canvasParticelle]) {
+    L.DomUtil.setPosition(cv, origine);
+    cv.width = dimensioni.x;
+    cv.height = dimensioni.y;
+    cv.style.width = dimensioni.x + "px";
+    cv.style.height = dimensioni.y + "px";
   }
 }
 
@@ -528,7 +590,197 @@ function aggiornaMappa(istante) {
   }
 }
 
-// --- Pannello dettaglio / chip punti -----------------------------------------
+// --- Campo colorato continuo + particelle (stile Windy, ma interpolato dai
+// nostri 32 punti reali — non è un grigliato di modello, è una stima
+// smussata tra i punti che abbiamo davvero). -------------------------------
+
+const TAPPE_COLORE_KT = [
+  { kt: 0,  colore: [61, 78, 161] },
+  { kt: 5,  colore: [47, 128, 176] },
+  { kt: 10, colore: [47, 174, 122] },
+  { kt: 20, colore: [142, 199, 63] },
+  { kt: 30, colore: [232, 201, 60] },
+  { kt: 40, colore: [226, 114, 58] },
+  { kt: 60, colore: [185, 60, 150] },
+];
+
+function coloreDaVelocita(kt) {
+  const v = Math.max(0, Math.min(kt, 60));
+  for (let i = 0; i < TAPPE_COLORE_KT.length - 1; i++) {
+    const a = TAPPE_COLORE_KT[i], b = TAPPE_COLORE_KT[i + 1];
+    if (v >= a.kt && v <= b.kt) {
+      const t = (v - a.kt) / (b.kt - a.kt);
+      return [0, 1, 2].map((k) => Math.round(a.colore[k] + (b.colore[k] - a.colore[k]) * t));
+    }
+  }
+  return TAPPE_COLORE_KT[TAPPE_COLORE_KT.length - 1].colore;
+}
+
+// Punti utili all'interpolazione nel momento selezionato: solo quelli con
+// coordinate dentro la bbox Abruzzo + margine, e con un dato vento valido
+// per l'ora corrente.
+function puntiPerCampo(istante) {
+  const margine = ABRUZZO_MARGINE_INTERPOLAZIONE;
+  const dentroMargine = (p) =>
+    p.lat >= ABRUZZO_BOUNDS.getSouth() - margine && p.lat <= ABRUZZO_BOUNDS.getNorth() + margine &&
+    p.lon >= ABRUZZO_BOUNDS.getWest() - margine && p.lon <= ABRUZZO_BOUNDS.getEast() + margine;
+
+  const risultato = [];
+  for (const p of tuttiIPunti()) {
+    if (!dentroMargine(p)) continue;
+    const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
+    if (!oraDati || oraDati.vento_nodi === null || oraDati.vento_nodi === undefined) continue;
+    const direzioneRad = ((oraDati.direzione_gradi ?? 0) + 180) * Math.PI / 180; // dove il vento VA, non da dove viene
+    risultato.push({
+      lat: p.lat, lon: p.lon,
+      vx: Math.sin(direzioneRad) * oraDati.vento_nodi,
+      vy: -Math.cos(direzioneRad) * oraDati.vento_nodi,
+      speedKt: oraDati.vento_nodi,
+    });
+  }
+  return risultato;
+}
+
+// Interpolazione IDW (inverse distance weighting) in spazio schermo (pixel):
+// a questa scala locale la distorsione della proiezione è trascurabile, e
+// lavorare in pixel evita conversioni geografiche ripetute per ogni cella.
+function calcolaCampo() {
+  if (!mappa || !canvasCampo) return;
+  const puntiDati = puntiPerCampo(timelineMaster[indiceOra]);
+  if (!puntiDati.length) { campoVettoriale = null; ctxCampo.clearRect(0, 0, canvasCampo.width, canvasCampo.height); return; }
+
+  const puntiPx = puntiDati.map((p) => {
+    const pt = mappa.latLngToContainerPoint([p.lat, p.lon]);
+    return { x: pt.x, y: pt.y, vx: p.vx, vy: p.vy, speedKt: p.speedKt };
+  });
+
+  const cellPx = 10;
+  const cols = Math.ceil(canvasCampo.width / cellPx);
+  const rows = Math.ceil(canvasCampo.height / cellPx);
+  const vx = new Float32Array(cols * rows);
+  const vy = new Float32Array(cols * rows);
+  const speed = new Float32Array(cols * rows);
+
+  const immagine = ctxCampo.createImageData(canvasCampo.width, canvasCampo.height);
+
+  for (let riga = 0; riga < rows; riga++) {
+    for (let col = 0; col < cols; col++) {
+      const cx = col * cellPx + cellPx / 2;
+      const cy = riga * cellPx + cellPx / 2;
+
+      let sommaPesi = 0, sVx = 0, sVy = 0, sSpeed = 0;
+      for (const p of puntiPx) {
+        const d2 = (p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy);
+        const peso = 1 / Math.max(d2, 400); // 400 = clamp per evitare pesi infiniti troppo vicino al punto
+        sommaPesi += peso;
+        sVx += p.vx * peso;
+        sVy += p.vy * peso;
+        sSpeed += p.speedKt * peso;
+      }
+      const idx = riga * cols + col;
+      vx[idx] = sVx / sommaPesi;
+      vy[idx] = sVy / sommaPesi;
+      speed[idx] = sSpeed / sommaPesi;
+
+      const [r, g, b] = coloreDaVelocita(speed[idx]);
+      const alpha = Math.round(255 * 0.42);
+      for (let py = riga * cellPx; py < Math.min((riga + 1) * cellPx, canvasCampo.height); py++) {
+        for (let px = col * cellPx; px < Math.min((col + 1) * cellPx, canvasCampo.width); px++) {
+          const off = (py * canvasCampo.width + px) * 4;
+          immagine.data[off] = r; immagine.data[off + 1] = g; immagine.data[off + 2] = b; immagine.data[off + 3] = alpha;
+        }
+      }
+    }
+  }
+
+  campoVettoriale = { cols, rows, cellPx, vx, vy, speed, larghezza: canvasCampo.width, altezza: canvasCampo.height };
+
+  // Disegno il colore su un canvas offscreen a bassa risoluzione, poi lo
+  // scalo con smoothing sul canvas visibile — è quello che dà l'effetto
+  // "sfumato" invece di un mosaico di quadratini netti.
+  const offscreen = document.createElement("canvas");
+  offscreen.width = canvasCampo.width; offscreen.height = canvasCampo.height;
+  offscreen.getContext("2d").putImageData(immagine, 0, 0);
+  ctxCampo.clearRect(0, 0, canvasCampo.width, canvasCampo.height);
+  ctxCampo.filter = "blur(6px)";
+  ctxCampo.drawImage(offscreen, 0, 0);
+  ctxCampo.filter = "none";
+}
+
+function ricalcolaCampo() {
+  calcolaCampo();
+  inizializzaParticelle();
+}
+
+function campionaVettore(x, y) {
+  if (!campoVettoriale) return null;
+  const col = Math.floor(x / campoVettoriale.cellPx);
+  const riga = Math.floor(y / campoVettoriale.cellPx);
+  if (col < 0 || col >= campoVettoriale.cols || riga < 0 || riga >= campoVettoriale.rows) return null;
+  const idx = riga * campoVettoriale.cols + col;
+  return { vx: campoVettoriale.vx[idx], vy: campoVettoriale.vy[idx], speedKt: campoVettoriale.speed[idx] };
+}
+
+function nuovaParticella() {
+  if (!canvasCampo) return { x: 0, y: 0, eta: 0, etaMax: 60, px: 0, py: 0 };
+  const x = Math.random() * canvasCampo.width;
+  const y = Math.random() * canvasCampo.height;
+  return { x, y, px: x, py: y, eta: 0, etaMax: 40 + Math.random() * 60 };
+}
+
+function inizializzaParticelle() {
+  particelle = [];
+  if (!campoVettoriale) return;
+  for (let i = 0; i < NUM_PARTICELLE; i++) particelle.push(nuovaParticella());
+}
+
+function avviaAnimazioneParticelle() {
+  if (animazioneCampoAttiva) return;
+  animazioneCampoAttiva = true;
+  ricalcolaCampo();
+
+  function passo(ts) {
+    if (!animazioneCampoAttiva) return;
+    if (ts - ultimoFrameMs < 33) { requestAnimationFrame(passo); return; } // ~30fps, più leggero su mobile
+    ultimoFrameMs = ts;
+
+    if (ctxParticelle && canvasParticelle) {
+      const w = canvasParticelle.width, h = canvasParticelle.height;
+
+      // Dissolvenza verso il TRASPARENTE (non verso il nero): riduce
+      // l'alpha di quello già disegnato senza tingerlo, lasciando intatto
+      // il campo colorato sottostante sull'altro canvas.
+      ctxParticelle.globalCompositeOperation = "destination-in";
+      ctxParticelle.fillStyle = "rgba(0,0,0,0.90)";
+      ctxParticelle.fillRect(0, 0, w, h);
+      ctxParticelle.globalCompositeOperation = "source-over";
+
+      for (const part of particelle) {
+        const vett = campionaVettore(part.x, part.y);
+        part.px = part.x; part.py = part.y;
+        if (!vett) { Object.assign(part, nuovaParticella()); continue; }
+        const scala = 0.09;
+        part.x += vett.vx * scala;
+        part.y += vett.vy * scala;
+        part.eta++;
+        if (part.eta > part.etaMax || part.x < 0 || part.x > w || part.y < 0 || part.y > h) {
+          Object.assign(part, nuovaParticella());
+          continue;
+        }
+        ctxParticelle.strokeStyle = "rgba(232,240,238,0.85)";
+        ctxParticelle.lineWidth = 1.1;
+        ctxParticelle.beginPath();
+        ctxParticelle.moveTo(part.px, part.py);
+        ctxParticelle.lineTo(part.x, part.y);
+        ctxParticelle.stroke();
+      }
+    }
+    requestAnimationFrame(passo);
+  }
+  requestAnimationFrame(passo);
+}
+
+
 function popolaSelettorePunti() {
   const contenitore = document.getElementById("selettore-punti");
   contenitore.innerHTML = "";
@@ -716,6 +968,7 @@ function aggiornaTutto() {
   document.getElementById("etichetta-orario").innerHTML = formattaEtichettaOra(istante);
   aggiornaMappa(istante);
   aggiornaGrigliaDati();
+  ricalcolaCampo();
   if (grafico) grafico.update("none");
 }
 
