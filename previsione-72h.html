@@ -24,11 +24,9 @@
     --brass-dim: #8C6E3B;
     --line: #234653;
     --flag-verde: #2F9E44;
-    --flag-verde-bg: #163C24;
     --flag-giallo: #F0B429;
-    --flag-giallo-bg: #3D2F0C;
     --flag-rosso: #E0393E;
-    --flag-rosso-bg: #3D1416;
+    --nd: #4C6870;
   }
 
   * { box-sizing: border-box; }
@@ -53,14 +51,9 @@
     z-index: 20;
   }
 
-  .titolo-riga { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-
   h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
   h1 span { color: var(--brass); }
-
   .sottotitolo { color: var(--ink-muted); font-size: 0.8rem; margin: 0.35rem 0 0; }
-  .link-plancia { color: var(--brass); text-decoration: none; }
-  .link-plancia:hover { text-decoration: underline; }
 
   .barra-link { display: flex; gap: 1.1rem; margin-top: 0.7rem; flex-wrap: wrap; }
   .barra-link a {
@@ -69,7 +62,7 @@
   }
   .barra-link a:active { background: var(--bg-panel-raised); }
 
-  main { max-width: 900px; margin: 0 auto; padding: 1.1rem 1.25rem 0; }
+  main { max-width: 960px; margin: 0 auto; padding: 1.1rem 1.25rem 0; }
 
   .pannello {
     background: var(--bg-panel);
@@ -91,8 +84,9 @@
 
   .etichetta-orario { font-size: 1.05rem; font-weight: 600; }
   .etichetta-orario .giorno-rel { color: var(--brass); }
+  .etichetta-orario .fuori-copertura { color: var(--ink-faint); font-size: 0.7rem; font-weight: 400; display: block; margin-top: 0.1rem; }
 
-  .pillole-giorno { display: flex; gap: 0.4rem; margin-left: auto; }
+  .pillole-giorno { display: flex; gap: 0.4rem; margin-left: auto; flex-wrap: wrap; }
   .pillola-giorno {
     background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink-muted);
     font-family: 'Space Grotesk', sans-serif; font-size: 0.72rem; padding: 0.35rem 0.7rem;
@@ -102,8 +96,8 @@
 
   input[type="range"] {
     width: 100%; -webkit-appearance: none; height: 6px; border-radius: 3px;
-    background: linear-gradient(90deg, var(--flag-verde) 0%, var(--flag-giallo) 50%, var(--flag-rosso) 100%);
-    opacity: 0.35;
+    background: linear-gradient(90deg, var(--flag-verde) 0%, var(--flag-giallo) 55%, var(--flag-rosso) 75%, var(--nd) 76%, var(--nd) 100%);
+    opacity: 0.45; margin-bottom: 0.9rem;
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
@@ -114,16 +108,30 @@
   }
 
   /* --- Mappa ------------------------------------------------------------ */
-  #mappa-previsione { height: 380px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-panel-raised); }
+  #mappa-previsione { height: 440px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-panel-raised); }
 
-  .marcatore-punto {
+  .marcatore-core {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    width: 46px; height: 46px; border-radius: 50%;
-    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.68rem;
-    color: #06121a; border: 2px solid rgba(255,255,255,0.85);
-    box-shadow: 0 0 0 4px rgba(0,0,0,0.25);
+    width: 50px; height: 50px; border-radius: 50%;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 0.78rem;
+    color: #06121a; border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
   }
-  .marcatore-freccia { font-size: 0.85rem; line-height: 1; margin-bottom: 1px; }
+  .marcatore-esteso {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.6rem;
+    color: #06121a; border: 2px solid rgba(255,255,255,0.75);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.45);
+  }
+  .marcatore-nd { background: var(--nd) !important; opacity: 0.55; }
+  .marcatore-freccia { font-size: 0.9rem; line-height: 1; }
+  .marcatore-esteso .marcatore-freccia { font-size: 0.68rem; }
+  .etichetta-marcatore {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.62rem; color: var(--ink);
+    background: rgba(10,28,36,0.82); padding: 0.05rem 0.35rem; border-radius: 5px; white-space: nowrap;
+    position: absolute; top: 52px; left: 50%; transform: translateX(-50%); pointer-events: none;
+  }
 
   .leaflet-popup-content-wrapper { background: var(--bg-panel-raised); color: var(--ink); border-radius: 10px; }
   .leaflet-popup-tip { background: var(--bg-panel-raised); }
@@ -148,6 +156,8 @@
   .grafico-contenitore { position: relative; height: 190px; margin-top: 0.9rem; }
 
   .selettore-punti { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  .gruppo-selettore { margin-bottom: 0.5rem; }
+  .gruppo-selettore .etichetta-gruppo { font-size: 0.66rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.35rem; }
   .chip-punto {
     background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink-muted);
     font-size: 0.72rem; padding: 0.3rem 0.65rem; border-radius: 20px; cursor: pointer;
@@ -176,6 +186,7 @@
   .login-errore { color: var(--flag-rosso); font-size: 0.75rem; margin: 0.8rem 0 0; min-height: 1em; }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (max-width: 560px) { #mappa-previsione { height: 360px; } }
 </style>
 </head>
 <body>
@@ -192,10 +203,8 @@
 </div>
 
 <header>
-  <div class="titolo-riga">
-    <h1>Omnia · Previsione <span>72h</span></h1>
-  </div>
-  <p class="sottotitolo">Evoluzione vento, mare e pioggia</p>
+  <h1>Omnia · Previsione <span>72h</span></h1>
+  <p class="sottotitolo">Roseto/Pineto in dettaglio (72h) + costa Adriatica estesa (48h)</p>
   <div class="barra-link">
     <a href="plancia-meteo.html">← plancia</a>
     <a href="osservazione-manuale.html">+ osservazione manuale</a>
@@ -220,16 +229,17 @@
       <div><span class="pallino" style="background:var(--flag-verde)"></span>Regolare (vento &lt; 10 nodi)</div>
       <div><span class="pallino" style="background:var(--flag-giallo)"></span>Moderato (10-15 nodi o raffiche ≥18)</div>
       <div><span class="pallino" style="background:var(--flag-rosso)"></span>Forte / Garbino (≥16 nodi o raffiche ≥25)</div>
-      <div>↗ direzione del vento (dove soffia)</div>
+      <div><span class="pallino" style="background:var(--nd)"></span>Nessun dato per quest'ora</div>
+      <div>↑ direzione del vento (dove soffia) · cerchi grandi = Roseto/Pineto (dettaglio) · cerchi piccoli = costa estesa</div>
     </div>
   </div>
 
   <div class="pannello">
     <p class="titolo-sezione">Dettaglio nell'ora selezionata</p>
-    <div class="selettore-punti" id="selettore-punti"></div>
+    <div id="selettore-punti"></div>
     <div class="griglia-dati" id="griglia-dati"></div>
     <div class="grafico-contenitore"><canvas id="grafico-72h"></canvas></div>
-    <p class="nota-disclaimer" id="nota-generato">I valori orari sono il consenso mediano di 5 modelli meteo (ECMWF, GFS, ICON, Météo-France, MET Norway), non un dato osservato — trattali come previsione, con margine di incertezza crescente man mano che ci si allontana da adesso.</p>
+    <p class="nota-disclaimer" id="nota-generato">I punti Roseto/Pineto usano il consenso mediano di 5 modelli (ECMWF, GFS, ICON, Météo-France, MET Norway) su 72h. I punti della costa estesa usano un solo modello (best_match) su 48h, pensato per un quadro d'insieme, non per la massima precisione locale — trattali come indicativi.</p>
   </div>
 
 </main>
@@ -259,35 +269,40 @@ const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 const auth = getAuth(app);
 
-// --- Coordinate di riferimento (fallback se non presenti nel documento) ---
-const PUNTI_GRIGLIA_FALLBACK = {
+const PUNTI_CORE_FALLBACK = {
   roseto_nord: { nome: "Roseto Nord", lat: 42.6850, lon: 14.0150 },
   roseto_sud:  { nome: "Roseto Sud",  lat: 42.6650, lon: 14.0020 },
   pineto:      { nome: "Pineto",      lat: 42.6067, lon: 14.0629 },
   offshore:    { nome: "Offshore",    lat: 42.6450, lon: 14.0700 },
 };
-const ORDINE_PUNTI = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
+const ORDINE_CORE = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
 
 const SOGLIA_VENTO_ROSSO = 16, SOGLIA_RAFFICA_ROSSO = 25;
 const SOGLIA_VENTO_GIALLO = 10, SOGLIA_RAFFICA_GIALLO = 18;
 const SOGLIA_PIOGGIA_PERC = 60;
+const TOLLERANZA_MATCH_MS = 40 * 60 * 1000; // 40 minuti di tolleranza per il match orario dei punti estesi
 
-let punti = [];              // [{id, nome, lat, lon, orario:[], mare:[]}]
+// --- Stato globale --------------------------------------------------------
+let timelineMaster = [];     // array di Date, la "colonna vertebrale" temporale (dai punti core, 72h)
+let puntiCore = [];          // [{id, nome, lat, lon, tipo:'core', orario:[{ora,vento_nodi,raffica_nodi,direzione_gradi,pioggia_perc,garbino,altezza_onda_m}]}]
+let puntiEstesi = [];        // stessa forma, tipo:'esteso', senza altezza_onda_m per la maggior parte
 let indiceOra = 0;
 let mappa = null;
-let marcatori = {};          // id -> L.marker
+let marcatori = {};
 let grafico = null;
-let puntoSelezionato = "roseto_nord";
+let puntoSelezionatoId = "roseto_nord";
 let timerAnimazione = null;
+
+function tuttiIPunti() { return [...puntiCore, ...puntiEstesi]; }
 
 function dataOggiRoma() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
-function coloreSeverita(oraDati) {
-  if (!oraDati) return "#4C6870";
-  if (oraDati.garbino_rischio || oraDati.vento_max_nodi >= SOGLIA_VENTO_ROSSO || oraDati.raffica_max_nodi >= SOGLIA_RAFFICA_ROSSO) return "#E0393E";
-  if (oraDati.vento_max_nodi >= SOGLIA_VENTO_GIALLO || oraDati.raffica_max_nodi >= SOGLIA_RAFFICA_GIALLO) return "#F0B429";
+function coloreSeverita(v, r, garbino) {
+  if (v === null && r === null) return null; // nessun dato
+  if (garbino || (v !== null && v >= SOGLIA_VENTO_ROSSO) || (r !== null && r >= SOGLIA_RAFFICA_ROSSO)) return "#E0393E";
+  if ((v !== null && v >= SOGLIA_VENTO_GIALLO) || (r !== null && r >= SOGLIA_RAFFICA_GIALLO)) return "#F0B429";
   return "#2F9E44";
 }
 
@@ -298,8 +313,7 @@ function classeMareria(altezza) {
   return { testo: "mosso", classe: "rosso" };
 }
 
-function formattaEtichettaOra(iso) {
-  const d = new Date(iso);
+function formattaEtichettaOra(d) {
   const oggi = dataOggiRoma();
   const chiaveGiorno = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
   const ora = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(d);
@@ -312,6 +326,70 @@ function formattaEtichettaOra(iso) {
   return `<span class="giorno-rel">${relativo || giornoTesto.toUpperCase()}</span> · ${giornoTesto} — ${ora}`;
 }
 
+// Trova, in un array orario, la voce più vicina a un istante dato — con
+// tolleranza. Sostituisce il vecchio confronto "o.ora === iso": quel
+// confronto testuale falliva silenziosamente se i due punti non condividevano
+// esattamente la stessa griglia oraria (es. punti core vs punti estesi, che
+// vengono da chiamate Open-Meteo separate), lasciando i marcatori bloccati
+// al valore segnaposto senza nessun errore in console.
+function trovaVoceVicina(orario, istante, tolleranzaMs = TOLLERANZA_MATCH_MS) {
+  if (!orario || !orario.length) return null;
+  let migliore = null, distanzaMin = Infinity;
+  for (const o of orario) {
+    const d = Math.abs(new Date(o.ora).getTime() - istante.getTime());
+    if (d < distanzaMin) { distanzaMin = d; migliore = o; }
+  }
+  return distanzaMin <= tolleranzaMs ? migliore : null;
+}
+
+// --- Normalizzazione dati: due fonti diverse, un'unica forma a valle -------
+function normalizzaCore(rilevazione) {
+  return ORDINE_CORE.map((id) => {
+    const p = rilevazione.punti.find((x) => x.punto === id);
+    const fallback = PUNTI_CORE_FALLBACK[id];
+    if (!p) return null;
+    return {
+      id, tipo: "core",
+      nome: p.nome || fallback.nome,
+      lat: p.lat || fallback.lat,
+      lon: p.lon || fallback.lon,
+      orario: (p.orario || []).map((o) => ({
+        ora: o.ora,
+        vento_nodi: o.vento_consenso_nodi ?? null,
+        raffica_nodi: o.raffica_max_nodi ?? null,
+        direzione_gradi: o.direzione_consenso_gradi ?? null,
+        pioggia_perc: o.probabilita_pioggia_perc ?? null,
+        garbino: !!o.garbino_rischio,
+        altezza_onda_m: (() => {
+          const m = trovaVoceVicina(p.mare || [], new Date(o.ora), 20 * 60 * 1000);
+          return m ? m.altezza_onda_m : null;
+        })(),
+      })),
+    };
+  }).filter(Boolean);
+}
+
+function normalizzaEsteso(doc) {
+  if (!doc || !doc.punti) return [];
+  return doc.punti.map((p) => ({
+    id: p.punto, tipo: "esteso",
+    nome: p.nome, lat: p.lat, lon: p.lon,
+    orario: (p.orario || []).map((o) => {
+      const garbinoStimato = o.direzione_gradi !== null && o.direzione_gradi !== undefined &&
+        o.direzione_gradi >= 247 && o.direzione_gradi <= 293 && o.vento_nodi !== null && o.vento_nodi >= 8;
+      return {
+        ora: o.ora,
+        vento_nodi: o.vento_nodi ?? null,
+        raffica_nodi: o.raffica_nodi ?? null,
+        direzione_gradi: o.direzione_gradi ?? null,
+        pioggia_mm: o.precipitazione_mm ?? null,
+        garbino: garbinoStimato,
+      };
+    }),
+    mareArray: (p.mare || []),
+  }));
+}
+
 // --- Caricamento dati ------------------------------------------------------
 async function caricaPrevisione() {
   const statoIniziale = document.getElementById("stato-iniziale");
@@ -319,45 +397,36 @@ async function caricaPrevisione() {
   statoIniziale.className = "stato-caricamento";
 
   let oggi = dataOggiRoma();
-  let snap = await getDoc(doc(db, "meteoGiornaliero", oggi));
-
-  if (!snap.exists() || !snap.data().ultimaRilevazione) {
-    // fallback su ieri, stesso criterio usato dalla Cloud Function
+  let snapCore = await getDoc(doc(db, "meteoGiornaliero", oggi));
+  if (!snapCore.exists() || !snapCore.data().ultimaRilevazione) {
     const ancoraIeri = new Date();
     ancoraIeri.setUTCDate(ancoraIeri.getUTCDate() - 1);
     const ieri = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(ancoraIeri);
-    snap = await getDoc(doc(db, "meteoGiornaliero", ieri));
+    snapCore = await getDoc(doc(db, "meteoGiornaliero", ieri));
   }
 
-  if (!snap.exists() || !snap.data().ultimaRilevazione || !snap.data().ultimaRilevazione.punti) {
-    statoIniziale.textContent = "Nessuna rilevazione disponibile al momento. Riprova tra qualche minuto.";
+  const snapEsteso = await getDoc(doc(db, "grigliaAdriatico", "ultima")).catch(() => null);
+
+  if (!snapCore.exists() || !snapCore.data().ultimaRilevazione || !snapCore.data().ultimaRilevazione.punti) {
+    statoIniziale.textContent = "Nessuna rilevazione disponibile al momento per Roseto/Pineto. Riprova tra qualche minuto.";
     statoIniziale.className = "stato-errore";
     return false;
   }
 
-  const rilevazione = snap.data().ultimaRilevazione;
+  const rilevazione = snapCore.data().ultimaRilevazione;
   document.getElementById("nota-generato").textContent =
-    `I valori orari sono il consenso mediano di 5 modelli meteo, non un dato osservato. Ultima raccolta dati: ${new Date(rilevazione.generatoIl).toLocaleString("it-IT", { timeZone: "Europe/Rome" })}.`;
+    `Roseto/Pineto: consenso di 5 modelli su 72h, ultima raccolta ${new Date(rilevazione.generatoIl).toLocaleString("it-IT", { timeZone: "Europe/Rome" })}. Costa estesa: modello singolo su 48h, indicativo, non per la massima precisione locale.`;
 
-  punti = ORDINE_PUNTI.map((id) => {
-    const p = rilevazione.punti.find((x) => x.punto === id) || rilevazione.punti.find((x) => x.id === id);
-    const fallback = PUNTI_GRIGLIA_FALLBACK[id];
-    if (!p) return null;
-    return {
-      id,
-      nome: p.nome || fallback.nome,
-      lat: p.lat || fallback.lat,
-      lon: p.lon || fallback.lon,
-      orario: p.orario || [],
-      mare: p.mare || [],
-    };
-  }).filter(Boolean);
+  puntiCore = normalizzaCore(rilevazione);
+  puntiEstesi = snapEsteso && snapEsteso.exists() ? normalizzaEsteso(snapEsteso.data()) : [];
 
-  if (!punti.length || !punti[0].orario.length) {
+  if (!puntiCore.length || !puntiCore[0].orario.length) {
     statoIniziale.textContent = "Dati orari non presenti in questa rilevazione.";
     statoIniziale.className = "stato-errore";
     return false;
   }
+
+  timelineMaster = puntiCore[0].orario.map((o) => new Date(o.ora));
 
   statoIniziale.style.display = "none";
   document.getElementById("contenuto-principale").style.display = "block";
@@ -365,47 +434,95 @@ async function caricaPrevisione() {
 }
 
 // --- Mappa ------------------------------------------------------------------
-function trovaOraVicinaMare(mare, iso) {
-  if (!mare || !mare.length) return null;
-  return mare.find((m) => m.ora === iso) || null;
-}
-
 function inizializzaMappa() {
-  mappa = L.map("mappa-previsione", { zoomControl: true, attributionControl: false }).setView([42.65, 14.05], 11);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19 }).addTo(mappa);
+  mappa = L.map("mappa-previsione", { zoomControl: true, attributionControl: false }).setView([42.75, 14.3], 9);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19 }).addTo(mappa);
 
-  for (const p of punti) {
-    const icona = L.divIcon({ className: "", html: `<div class="marcatore-punto" id="marcatore-${p.id}"><div class="marcatore-freccia">↑</div><div>--</div></div>`, iconSize: [46, 46], iconAnchor: [23, 23] });
+  for (const p of puntiCore) {
+    const icona = L.divIcon({
+      className: "", iconSize: [50, 50], iconAnchor: [25, 25],
+      html: `<div class="marcatore-core" id="marcatore-${p.id}"><div class="marcatore-freccia">↑</div><div class="valore-nodi">--</div></div><div class="etichetta-marcatore">${p.nome}</div>`,
+    });
+    const m = L.marker([p.lat, p.lon], { icon: icona, zIndexOffset: 1000 }).addTo(mappa);
+    m.bindPopup(`<div class="popup-punto" id="popup-${p.id}"></div>`);
+    m.on("click", () => selezionaPunto(p.id));
+    marcatori[p.id] = m;
+  }
+
+  for (const p of puntiEstesi) {
+    const icona = L.divIcon({
+      className: "", iconSize: [30, 30], iconAnchor: [15, 15],
+      html: `<div class="marcatore-esteso" id="marcatore-${p.id}"><div class="marcatore-freccia">↑</div></div>`,
+    });
     const m = L.marker([p.lat, p.lon], { icon: icona }).addTo(mappa);
     m.bindPopup(`<div class="popup-punto" id="popup-${p.id}"></div>`);
+    m.on("click", () => selezionaPunto(p.id));
     marcatori[p.id] = m;
   }
 }
 
-function aggiornaMappa(iso) {
-  for (const p of punti) {
-    const oraDati = p.orario.find((o) => o.ora === iso);
-    const mareDati = trovaOraVicinaMare(p.mare, iso);
-    const el = document.getElementById(`marcatore-${p.id}`);
-    if (!el || !oraDati) continue;
+function segnaSenzaDati(p) {
+  const el = document.getElementById(`marcatore-${p.id}`);
+  if (!el) return;
+  el.classList.add("marcatore-nd");
+  el.style.background = "";
+  const freccia = el.querySelector(".marcatore-freccia");
+  if (freccia) freccia.style.transform = "none";
+  const valore = el.querySelector(".valore-nodi");
+  if (valore) valore.textContent = "n/d";
+  const popup = document.getElementById(`popup-${p.id}`);
+  if (popup) popup.innerHTML = `<h3>${p.nome}</h3><p>Nessun dato per quest'ora (fuori dalla finestra di previsione disponibile per questo punto).</p>`;
+}
 
-    const colore = coloreSeverita(oraDati);
+function aggiornaMappa(istante) {
+  for (const p of puntiCore) {
+    const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
+    const el = document.getElementById(`marcatore-${p.id}`);
+    if (!el) continue;
+    if (!oraDati) { segnaSenzaDati(p); continue; }
+
+    el.classList.remove("marcatore-nd");
+    const colore = coloreSeverita(oraDati.vento_nodi, oraDati.raffica_nodi, oraDati.garbino) || "#4C6870";
     el.style.background = colore;
     const freccia = el.querySelector(".marcatore-freccia");
-    const direzione = oraDati.direzione_consenso_gradi;
-    freccia.style.transform = direzione !== null && direzione !== undefined ? `rotate(${direzione + 180}deg)` : "none";
-    el.querySelector("div:last-child").textContent = oraDati.vento_max_nodi !== null ? Math.round(oraDati.vento_max_nodi) : "--";
+    freccia.style.transform = oraDati.direzione_gradi !== null ? `rotate(${oraDati.direzione_gradi + 180}deg)` : "none";
+    el.querySelector(".valore-nodi").textContent = oraDati.vento_nodi !== null ? Math.round(oraDati.vento_nodi) : "--";
 
-    const mareInfo = classeMareria(mareDati ? mareDati.altezza_onda_m : null);
+    const mareInfo = classeMareria(oraDati.altezza_onda_m);
     const popup = document.getElementById(`popup-${p.id}`);
     if (popup) {
       popup.innerHTML = `
         <h3>${p.nome}</h3>
-        <p>Vento: <b>${oraDati.vento_consenso_nodi !== null ? oraDati.vento_consenso_nodi.toFixed(0) : "n/d"} nodi</b> (raffiche ${oraDati.raffica_max_nodi !== null ? oraDati.raffica_max_nodi.toFixed(0) : "n/d"})</p>
-        <p>Direzione: <b>${direzione !== null && direzione !== undefined ? Math.round(direzione) + "°" : "n/d"}</b></p>
-        <p>Mare: <b>${mareInfo.testo}</b> ${mareDati && mareDati.altezza_onda_m !== null ? `(${mareDati.altezza_onda_m.toFixed(2)} m)` : ""}</p>
-        <p>Pioggia: <b>${oraDati.probabilita_pioggia_perc !== null ? oraDati.probabilita_pioggia_perc + "%" : "n/d"}</b></p>
-        ${oraDati.garbino_rischio ? `<p style="color:#E0393E">⚠️ Rischio Garbino</p>` : ""}
+        <p>Vento: <b>${oraDati.vento_nodi !== null ? oraDati.vento_nodi.toFixed(0) : "n/d"} nodi</b> (raffiche ${oraDati.raffica_nodi !== null ? oraDati.raffica_nodi.toFixed(0) : "n/d"})</p>
+        <p>Direzione: <b>${oraDati.direzione_gradi !== null ? Math.round(oraDati.direzione_gradi) + "°" : "n/d"}</b></p>
+        <p>Mare: <b>${mareInfo.testo}</b> ${oraDati.altezza_onda_m !== null ? `(${oraDati.altezza_onda_m.toFixed(2)} m)` : ""}</p>
+        <p>Pioggia: <b>${oraDati.pioggia_perc !== null ? oraDati.pioggia_perc + "%" : "n/d"}</b></p>
+        ${oraDati.garbino ? `<p style="color:#E0393E">⚠️ Rischio Garbino</p>` : ""}
+      `;
+    }
+  }
+
+  for (const p of puntiEstesi) {
+    const oraDati = trovaVoceVicina(p.orario, istante);
+    const el = document.getElementById(`marcatore-${p.id}`);
+    if (!el) continue;
+    if (!oraDati) { segnaSenzaDati(p); continue; }
+
+    el.classList.remove("marcatore-nd");
+    const colore = coloreSeverita(oraDati.vento_nodi, oraDati.raffica_nodi, oraDati.garbino) || "#4C6870";
+    el.style.background = colore;
+    const freccia = el.querySelector(".marcatore-freccia");
+    freccia.style.transform = oraDati.direzione_gradi !== null ? `rotate(${oraDati.direzione_gradi + 180}deg)` : "none";
+
+    const popup = document.getElementById(`popup-${p.id}`);
+    if (popup) {
+      popup.innerHTML = `
+        <h3>${p.nome}</h3>
+        <p>Vento: <b>${oraDati.vento_nodi !== null ? oraDati.vento_nodi.toFixed(0) : "n/d"} nodi</b> (raffiche ${oraDati.raffica_nodi !== null ? oraDati.raffica_nodi.toFixed(0) : "n/d"})</p>
+        <p>Direzione: <b>${oraDati.direzione_gradi !== null ? Math.round(oraDati.direzione_gradi) + "°" : "n/d"}</b></p>
+        <p>Pioggia: <b>${oraDati.pioggia_mm !== null ? oraDati.pioggia_mm.toFixed(1) + " mm/h" : "n/d"}</b></p>
+        ${oraDati.garbino ? `<p style="color:#E0393E">⚠️ Garbino (stima, modello singolo)</p>` : ""}
+        <p style="font-size:0.68rem;opacity:0.7;">Costa estesa · modello singolo, indicativo</p>
       `;
     }
   }
@@ -415,28 +532,59 @@ function aggiornaMappa(iso) {
 function popolaSelettorePunti() {
   const contenitore = document.getElementById("selettore-punti");
   contenitore.innerHTML = "";
-  for (const p of punti) {
-    const chip = document.createElement("button");
-    chip.className = "chip-punto" + (p.id === puntoSelezionato ? " attivo" : "");
-    chip.textContent = p.nome;
-    chip.addEventListener("click", () => {
-      puntoSelezionato = p.id;
-      popolaSelettorePunti();
-      aggiornaGrigliaDati();
-      disegnaGrafico();
-    });
-    contenitore.appendChild(chip);
+
+  const gruppoCore = document.createElement("div");
+  gruppoCore.className = "gruppo-selettore";
+  gruppoCore.innerHTML = `<span class="etichetta-gruppo">Roseto / Pineto (dettaglio)</span>`;
+  const rigaCore = document.createElement("div");
+  rigaCore.className = "selettore-punti";
+  puntiCore.forEach((p) => rigaCore.appendChild(creaChip(p)));
+  gruppoCore.appendChild(rigaCore);
+  contenitore.appendChild(gruppoCore);
+
+  if (puntiEstesi.length) {
+    const gruppoEsteso = document.createElement("div");
+    gruppoEsteso.className = "gruppo-selettore";
+    gruppoEsteso.innerHTML = `<span class="etichetta-gruppo">Costa estesa</span>`;
+    const rigaEsteso = document.createElement("div");
+    rigaEsteso.className = "selettore-punti";
+    puntiEstesi.forEach((p) => rigaEsteso.appendChild(creaChip(p)));
+    gruppoEsteso.appendChild(rigaEsteso);
+    contenitore.appendChild(gruppoEsteso);
   }
 }
 
+function creaChip(p) {
+  const chip = document.createElement("button");
+  chip.className = "chip-punto" + (p.id === puntoSelezionatoId ? " attivo" : "");
+  chip.textContent = p.nome;
+  chip.addEventListener("click", () => selezionaPunto(p.id));
+  return chip;
+}
+
+function selezionaPunto(id) {
+  puntoSelezionatoId = id;
+  popolaSelettorePunti();
+  aggiornaGrigliaDati();
+  disegnaGrafico();
+  if (marcatori[id]) marcatori[id].openPopup();
+}
+
+function trovaPuntoSelezionato() {
+  return tuttiIPunti().find((p) => p.id === puntoSelezionatoId) || puntiCore[0];
+}
+
 function aggiornaGrigliaDati() {
-  const punto = punti.find((p) => p.id === puntoSelezionato);
+  const punto = trovaPuntoSelezionato();
   const griglia = document.getElementById("griglia-dati");
   if (!punto) { griglia.innerHTML = ""; return; }
-  const iso = punto.orario[indiceOra] ? punto.orario[indiceOra].ora : null;
-  const oraDati = punto.orario[indiceOra];
-  const mareDati = trovaOraVicinaMare(punto.mare, iso);
-  const mareInfo = classeMareria(mareDati ? mareDati.altezza_onda_m : null);
+  const istante = timelineMaster[indiceOra];
+  const oraDati = trovaVoceVicina(punto.orario, istante, punto.tipo === "core" ? 45 * 60 * 1000 : TOLLERANZA_MATCH_MS);
+
+  if (!oraDati) {
+    griglia.innerHTML = `<div class="cella-dato"><div class="etichetta">Stato</div><div class="valore">Nessun dato per quest'ora</div></div>`;
+    return;
+  }
 
   function classeVento(v) {
     if (v === null || v === undefined) return "";
@@ -450,30 +598,40 @@ function aggiornaGrigliaDati() {
     if (r >= SOGLIA_RAFFICA_GIALLO) return "giallo";
     return "verde";
   }
-  function classePioggia(p) {
-    if (p === null || p === undefined) return "";
-    return p >= SOGLIA_PIOGGIA_PERC ? "rosso" : p >= 30 ? "giallo" : "verde";
+
+  let celleExtra = "";
+  if (punto.tipo === "core") {
+    const mareInfo = classeMareria(oraDati.altezza_onda_m);
+    function classePioggia(pp) {
+      if (pp === null || pp === undefined) return "";
+      return pp >= SOGLIA_PIOGGIA_PERC ? "rosso" : pp >= 30 ? "giallo" : "verde";
+    }
+    celleExtra = `
+      <div class="cella-dato"><div class="etichetta">Mare</div><div class="valore ${mareInfo.classe}">${mareInfo.testo}</div></div>
+      <div class="cella-dato"><div class="etichetta">Pioggia</div><div class="valore ${classePioggia(oraDati.pioggia_perc)}">${oraDati.pioggia_perc !== null ? oraDati.pioggia_perc + "%" : "--"}</div></div>
+    `;
+  } else {
+    celleExtra = `
+      <div class="cella-dato"><div class="etichetta">Pioggia</div><div class="valore">${oraDati.pioggia_mm !== null ? oraDati.pioggia_mm.toFixed(1) + " mm/h" : "--"}</div></div>
+    `;
   }
 
   griglia.innerHTML = `
-    <div class="cella-dato"><div class="etichetta">Vento</div><div class="valore ${classeVento(oraDati.vento_max_nodi)}">${oraDati.vento_consenso_nodi !== null ? oraDati.vento_consenso_nodi.toFixed(0) : "--"} kt</div></div>
-    <div class="cella-dato"><div class="etichetta">Raffiche</div><div class="valore ${classeRaffica(oraDati.raffica_max_nodi)}">${oraDati.raffica_max_nodi !== null ? oraDati.raffica_max_nodi.toFixed(0) : "--"} kt</div></div>
-    <div class="cella-dato"><div class="etichetta">Mare</div><div class="valore ${mareInfo.classe}">${mareInfo.testo}</div></div>
-    <div class="cella-dato"><div class="etichetta">Pioggia</div><div class="valore ${classePioggia(oraDati.probabilita_pioggia_perc)}">${oraDati.probabilita_pioggia_perc !== null ? oraDati.probabilita_pioggia_perc + "%" : "--"}</div></div>
+    <div class="cella-dato"><div class="etichetta">Vento</div><div class="valore ${classeVento(oraDati.vento_nodi)}">${oraDati.vento_nodi !== null ? oraDati.vento_nodi.toFixed(0) : "--"} kt</div></div>
+    <div class="cella-dato"><div class="etichetta">Raffiche</div><div class="valore ${classeRaffica(oraDati.raffica_nodi)}">${oraDati.raffica_nodi !== null ? oraDati.raffica_nodi.toFixed(0) : "--"} kt</div></div>
+    ${celleExtra}
   `;
 }
 
-// --- Grafico 72h con indicatore sincronizzato --------------------------------
+// --- Grafico con indicatore sincronizzato ------------------------------------
 function disegnaGrafico() {
-  const punto = punti.find((p) => p.id === puntoSelezionato);
+  const punto = trovaPuntoSelezionato();
   if (!punto) return;
   const canvas = document.getElementById("grafico-72h");
   const etichette = punto.orario.map((o) => new Date(o.ora));
-  const ventoDati = punto.orario.map((o) => o.vento_consenso_nodi);
-  const onda = punto.orario.map((o) => {
-    const m = trovaOraVicinaMare(punto.mare, o.ora);
-    return m ? m.altezza_onda_m : null;
-  });
+  const ventoDati = punto.orario.map((o) => o.vento_nodi);
+  const secondaSerie = punto.tipo === "core" ? punto.orario.map((o) => o.altezza_onda_m) : punto.orario.map((o) => o.raffica_nodi);
+  const etichettaSeconda = punto.tipo === "core" ? "Onda (m)" : "Raffiche (nodi)";
 
   if (grafico) grafico.destroy();
   grafico = new Chart(canvas, {
@@ -481,36 +639,19 @@ function disegnaGrafico() {
     data: {
       labels: etichette,
       datasets: [
-        {
-          label: "Vento (nodi)",
-          data: ventoDati,
-          borderColor: "#7FA0A8",
-          backgroundColor: "rgba(127,160,168,0.12)",
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-          yAxisID: "y",
-        },
-        {
-          label: "Onda (m)",
-          data: onda,
-          borderColor: "#C99B4A",
-          borderDash: [4, 3],
-          fill: false,
-          tension: 0.3,
-          pointRadius: 0,
-          yAxisID: "y1",
-        },
+        { label: "Vento (nodi)", data: ventoDati, borderColor: "#7FA0A8", backgroundColor: "rgba(127,160,168,0.12)", fill: true, tension: 0.3, pointRadius: 0, yAxisID: "y" },
+        { label: etichettaSeconda, data: secondaSerie, borderColor: "#C99B4A", borderDash: [4, 3], fill: false, tension: 0.3, pointRadius: 0, yAxisID: "y1" },
       ],
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       onClick: (evt, elementi, chart) => {
-        const punti2 = chart.getElementsAtEventForMode(evt, "index", { intersect: false }, true);
-        if (punti2.length) {
-          indiceOra = punti2[0].index;
+        const trovati = chart.getElementsAtEventForMode(evt, "index", { intersect: false }, true);
+        if (trovati.length) {
+          const nuovoIstante = etichette[trovati[0].index];
+          const idx = timelineMaster.findIndex((d) => Math.abs(d - nuovoIstante) < 30 * 60 * 1000);
+          indiceOra = idx !== -1 ? idx : indiceOra;
           document.getElementById("slider-tempo").value = indiceOra;
           aggiornaTutto();
         }
@@ -522,21 +663,20 @@ function disegnaGrafico() {
       scales: {
         x: { type: "time", time: { unit: "hour" }, ticks: { color: "#4C6870", maxTicksLimit: 8 }, grid: { color: "rgba(35,70,83,0.4)" } },
         y: { position: "left", ticks: { color: "#7FA0A8" }, grid: { color: "rgba(35,70,83,0.4)" }, title: { display: true, text: "nodi", color: "#7FA0A8" } },
-        y1: { position: "right", ticks: { color: "#C99B4A" }, grid: { display: false }, title: { display: true, text: "metri", color: "#C99B4A" } },
+        y1: { position: "right", ticks: { color: "#C99B4A" }, grid: { display: false }, title: { display: true, text: punto.tipo === "core" ? "metri" : "nodi", color: "#C99B4A" } },
       },
     },
     plugins: [{
       id: "lineaTempo",
       afterDraw: (chart) => {
-        const x = chart.scales.x.getPixelForValue(etichette[indiceOra]);
+        const istante = timelineMaster[indiceOra];
+        const x = chart.scales.x.getPixelForValue(istante);
         const { top, bottom } = chart.chartArea;
         const ctx = chart.ctx;
         ctx.save();
         ctx.beginPath();
-        ctx.moveTo(x, top);
-        ctx.lineTo(x, bottom);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#E8F0EE";
+        ctx.moveTo(x, top); ctx.lineTo(x, bottom);
+        ctx.lineWidth = 2; ctx.strokeStyle = "#E8F0EE";
         ctx.stroke();
         ctx.restore();
       },
@@ -549,18 +689,13 @@ function popolaPilloleGiorno() {
   const contenitore = document.getElementById("pillole-giorno");
   contenitore.innerHTML = "";
   const etichette = ["Oggi", "Domani", "Dopodomani"];
-  const riferimento = punti[0].orario;
   const oggiChiave = dataOggiRoma();
 
   etichette.forEach((testo, offset) => {
     const target = new Date(oggiChiave);
     target.setDate(target.getDate() + offset);
     const chiaveTarget = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(target);
-    const idx = riferimento.findIndex((o) => {
-      const chiaveOra = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date(o.ora));
-      const ora = new Date(o.ora).getUTCHours();
-      return chiaveOra === chiaveTarget;
-    });
+    const idx = timelineMaster.findIndex((d) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(d) === chiaveTarget);
     if (idx === -1) return;
     const pillola = document.createElement("button");
     pillola.className = "pillola-giorno";
@@ -576,15 +711,12 @@ function popolaPilloleGiorno() {
 
 // --- Ciclo di aggiornamento principale ----------------------------------------
 function aggiornaTutto() {
-  const punto0 = punti[0];
-  const iso = punto0.orario[indiceOra] ? punto0.orario[indiceOra].ora : null;
-  if (!iso) return;
-  document.getElementById("etichetta-orario").innerHTML = formattaEtichettaOra(iso);
-  aggiornaMappa(iso);
+  const istante = timelineMaster[indiceOra];
+  if (!istante) return;
+  document.getElementById("etichetta-orario").innerHTML = formattaEtichettaOra(istante);
+  aggiornaMappa(istante);
   aggiornaGrigliaDati();
-  if (grafico) {
-    grafico.update("none");
-  }
+  if (grafico) grafico.update("none");
 }
 
 function avviaAnimazione() {
@@ -598,10 +730,10 @@ function avviaAnimazione() {
   btn.textContent = "⏸";
   const slider = document.getElementById("slider-tempo");
   timerAnimazione = setInterval(() => {
-    indiceOra = (indiceOra + 1) % (punti[0].orario.length);
+    indiceOra = (indiceOra + 1) % timelineMaster.length;
     slider.value = indiceOra;
     aggiornaTutto();
-  }, 350);
+  }, 400);
 }
 
 async function avviaPagina() {
@@ -609,14 +741,13 @@ async function avviaPagina() {
   if (!ok) return;
 
   const slider = document.getElementById("slider-tempo");
-  slider.max = punti[0].orario.length - 1;
+  slider.max = timelineMaster.length - 1;
 
-  // posiziona lo slider sull'ora più vicina ad adesso
   const adesso = Date.now();
   let migliore = 0, distanzaMin = Infinity;
-  punti[0].orario.forEach((o, i) => {
-    const d = Math.abs(new Date(o.ora).getTime() - adesso);
-    if (d < distanzaMin) { distanzaMin = d; migliore = i; }
+  timelineMaster.forEach((d, i) => {
+    const diff = Math.abs(d.getTime() - adesso);
+    if (diff < distanzaMin) { distanzaMin = diff; migliore = i; }
   });
   indiceOra = migliore;
   slider.value = indiceOra;
