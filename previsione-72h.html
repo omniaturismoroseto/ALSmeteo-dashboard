@@ -62,6 +62,13 @@
   .link-plancia { color: var(--brass); text-decoration: none; }
   .link-plancia:hover { text-decoration: underline; }
 
+  .barra-link { display: flex; gap: 1.1rem; margin-top: 0.7rem; flex-wrap: wrap; }
+  .barra-link a {
+    color: var(--brass); font-size: 0.72rem; text-decoration: none;
+    padding: 0.3rem 0.6rem; border: 1px solid var(--brass-dim); border-radius: 20px; white-space: nowrap;
+  }
+  .barra-link a:active { background: var(--bg-panel-raised); }
+
   main { max-width: 900px; margin: 0 auto; padding: 1.1rem 1.25rem 0; }
 
   .pannello {
@@ -188,7 +195,15 @@
   <div class="titolo-riga">
     <h1>Omnia · Previsione <span>72h</span></h1>
   </div>
-  <p class="sottotitolo">Evoluzione vento, mare e pioggia — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
+  <p class="sottotitolo">Evoluzione vento, mare e pioggia</p>
+  <div class="barra-link">
+    <a href="plancia-meteo.html">← plancia</a>
+    <a href="osservazione-manuale.html">+ osservazione manuale</a>
+    <a href="calibrazione-meteo.html">📊 calibrazione</a>
+    <a href="storico-meteo.html">📅 storico</a>
+    <a href="gestione-lidi.html">🏖️ gestione lidi</a>
+    <a href="vista-adriatico.html">🌊 vista adriatico</a>
+  </div>
 </header>
 
 <main id="contenuto-principale" style="display:none;">
