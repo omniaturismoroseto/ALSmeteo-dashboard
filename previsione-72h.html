@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Previsione 72h — Omnia</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A1C24">
+<link rel="apple-touch-icon" href="icona-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root {
+    --bg-abyss: #0A1C24;
+    --bg-panel: #0F2733;
+    --bg-panel-raised: #163542;
+    --bg-panel-raised-2: #1D4353;
+    --ink: #E8F0EE;
+    --ink-muted: #7FA0A8;
+    --ink-faint: #4C6870;
+    --brass: #C99B4A;
+    --brass-dim: #8C6E3B;
+    --line: #234653;
+    --flag-verde: #2F9E44;
+    --flag-verde-bg: #163C24;
+    --flag-giallo: #F0B429;
+    --flag-giallo-bg: #3D2F0C;
+    --flag-rosso: #E0393E;
+    --flag-rosso-bg: #3D1416;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg-abyss);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 0 3rem;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  header {
+    padding: 1.5rem 1.25rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    background: var(--bg-abyss);
+    z-index: 20;
+  }
+
+  .titolo-riga { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+  h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
+  h1 span { color: var(--brass); }
+
+  .sottotitolo { color: var(--ink-muted); font-size: 0.8rem; margin: 0.35rem 0 0; }
+  .link-plancia { color: var(--brass); text-decoration: none; }
+  .link-plancia:hover { text-decoration: underline; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 1.1rem 1.25rem 0; }
+
+  .pannello {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.1rem 1.1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  /* --- Timeline / controlli ------------------------------------------- */
+  .riga-timeline { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+
+  .bottone-play {
+    background: var(--brass); color: var(--bg-abyss); border: none; border-radius: 50%;
+    width: 2.5rem; height: 2.5rem; font-size: 1rem; cursor: pointer; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bottone-play:active { transform: scale(0.94); }
+
+  .etichetta-orario { font-size: 1.05rem; font-weight: 600; }
+  .etichetta-orario .giorno-rel { color: var(--brass); }
+
+  .pillole-giorno { display: flex; gap: 0.4rem; margin-left: auto; }
+  .pillola-giorno {
+    background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink-muted);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.72rem; padding: 0.35rem 0.7rem;
+    border-radius: 20px; cursor: pointer;
+  }
+  .pillola-giorno.attiva { background: var(--brass); color: var(--bg-abyss); border-color: var(--brass); }
+
+  input[type="range"] {
+    width: 100%; -webkit-appearance: none; height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--flag-verde) 0%, var(--flag-giallo) 50%, var(--flag-rosso) 100%);
+    opacity: 0.35;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--brass); border: 2px solid var(--bg-abyss); cursor: pointer; margin-top: -6px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--brass); border: 2px solid var(--bg-abyss); cursor: pointer;
+  }
+
+  /* --- Mappa ------------------------------------------------------------ */
+  #mappa-previsione { height: 380px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-panel-raised); }
+
+  .marcatore-punto {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 46px; height: 46px; border-radius: 50%;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.68rem;
+    color: #06121a; border: 2px solid rgba(255,255,255,0.85);
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.25);
+  }
+  .marcatore-freccia { font-size: 0.85rem; line-height: 1; margin-bottom: 1px; }
+
+  .leaflet-popup-content-wrapper { background: var(--bg-panel-raised); color: var(--ink); border-radius: 10px; }
+  .leaflet-popup-tip { background: var(--bg-panel-raised); }
+  .popup-punto h3 { margin: 0 0 0.4rem; font-size: 0.85rem; color: var(--brass); }
+  .popup-punto p { margin: 0.15rem 0; font-size: 0.78rem; color: var(--ink-muted); }
+  .popup-punto b { color: var(--ink); }
+
+  /* --- Legenda ------------------------------------------------------------ */
+  .legenda { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.8rem; font-size: 0.72rem; color: var(--ink-muted); }
+  .legenda span.pallino { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.35rem; }
+
+  /* --- Riepilogo punto selezionato ------------------------------------- */
+  .titolo-sezione { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); margin: 0 0 0.7rem; }
+  .griglia-dati { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.7rem; }
+  .cella-dato { background: var(--bg-panel-raised); border-radius: 10px; padding: 0.65rem 0.8rem; }
+  .cella-dato .etichetta { font-size: 0.68rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.04em; }
+  .cella-dato .valore { font-size: 1.15rem; font-weight: 600; margin-top: 0.15rem; }
+  .cella-dato .valore.verde { color: var(--flag-verde); }
+  .cella-dato .valore.giallo { color: var(--flag-giallo); }
+  .cella-dato .valore.rosso { color: var(--flag-rosso); }
+
+  .grafico-contenitore { position: relative; height: 190px; margin-top: 0.9rem; }
+
+  .selettore-punti { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  .chip-punto {
+    background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink-muted);
+    font-size: 0.72rem; padding: 0.3rem 0.65rem; border-radius: 20px; cursor: pointer;
+  }
+  .chip-punto.attivo { background: var(--brass-dim); color: var(--ink); border-color: var(--brass); }
+
+  .nota-disclaimer { font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.9rem; line-height: 1.5; }
+
+  .stato-caricamento, .stato-errore { text-align: center; padding: 3rem 1rem; color: var(--ink-muted); font-size: 0.85rem; }
+  .stato-errore { color: var(--flag-rosso); }
+
+  /* --- Login (identico alle altre pagine) ------------------------------- */
+  .schermata-login { position: fixed; inset: 0; background: var(--bg-abyss); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1.25rem; }
+  .scheda-login { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 2rem 1.5rem; width: 100%; max-width: 340px; text-align: center; }
+  .scheda-login h2 { font-size: 1.05rem; margin: 0 0 0.4rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); }
+  .scheda-login p { color: var(--ink-muted); font-size: 0.78rem; margin: 0 0 1.3rem; }
+  .scheda-login input {
+    width: 100%; padding: 0.6rem 0.75rem; margin-bottom: 0.6rem; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg-panel-raised); color: var(--ink); font-size: 0.9rem;
+  }
+  .scheda-login input:focus { outline: none; border-color: var(--brass); }
+  .scheda-login button {
+    width: 100%; padding: 0.65rem; border-radius: 8px; border: none; background: var(--brass);
+    color: var(--bg-abyss); font-weight: 600; cursor: pointer; font-size: 0.9rem;
+  }
+  .login-errore { color: var(--flag-rosso); font-size: 0.75rem; margin: 0.8rem 0 0; min-height: 1em; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div id="schermata-login" class="schermata-login">
+  <div class="scheda-login">
+    <h2>Omnia · Previsione 72h</h2>
+    <p>Accesso riservato allo staff Adriatic Lifeguard Service</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <button id="login-bottone">Accedi</button>
+    <p id="login-errore" class="login-errore"></p>
+  </div>
+</div>
+
+<header>
+  <div class="titolo-riga">
+    <h1>Omnia · Previsione <span>72h</span></h1>
+  </div>
+  <p class="sottotitolo">Evoluzione vento, mare e pioggia — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
+</header>
+
+<main id="contenuto-principale" style="display:none;">
+
+  <div class="pannello">
+    <div class="riga-timeline">
+      <button class="bottone-play" id="btn-play" aria-label="Avvia animazione">▶</button>
+      <div class="etichetta-orario mono" id="etichetta-orario">—</div>
+      <div class="pillole-giorno" id="pillole-giorno"></div>
+    </div>
+    <input type="range" id="slider-tempo" min="0" max="0" value="0" step="1">
+    <div id="mappa-previsione"></div>
+    <div class="legenda">
+      <div><span class="pallino" style="background:var(--flag-verde)"></span>Regolare (vento &lt; 10 nodi)</div>
+      <div><span class="pallino" style="background:var(--flag-giallo)"></span>Moderato (10-15 nodi o raffiche ≥18)</div>
+      <div><span class="pallino" style="background:var(--flag-rosso)"></span>Forte / Garbino (≥16 nodi o raffiche ≥25)</div>
+      <div>↗ direzione del vento (dove soffia)</div>
+    </div>
+  </div>
+
+  <div class="pannello">
+    <p class="titolo-sezione">Dettaglio nell'ora selezionata</p>
+    <div class="selettore-punti" id="selettore-punti"></div>
+    <div class="griglia-dati" id="griglia-dati"></div>
+    <div class="grafico-contenitore"><canvas id="grafico-72h"></canvas></div>
+    <p class="nota-disclaimer" id="nota-generato">I valori orari sono il consenso mediano di 5 modelli meteo (ECMWF, GFS, ICON, Météo-France, MET Norway), non un dato osservato — trattali come previsione, con margine di incertezza crescente man mano che ci si allontana da adesso.</p>
+  </div>
+
+</main>
+
+<div id="stato-iniziale" class="stato-caricamento">Accedi per caricare la previsione…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "699028105579",
+  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
+  measurementId: "G-M3PSWKEYCJ",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+const auth = getAuth(app);
+
+// --- Coordinate di riferimento (fallback se non presenti nel documento) ---
+const PUNTI_GRIGLIA_FALLBACK = {
+  roseto_nord: { nome: "Roseto Nord", lat: 42.6850, lon: 14.0150 },
+  roseto_sud:  { nome: "Roseto Sud",  lat: 42.6650, lon: 14.0020 },
+  pineto:      { nome: "Pineto",      lat: 42.6067, lon: 14.0629 },
+  offshore:    { nome: "Offshore",    lat: 42.6450, lon: 14.0700 },
+};
+const ORDINE_PUNTI = ["roseto_nord", "roseto_sud", "pineto", "offshore"];
+
+const SOGLIA_VENTO_ROSSO = 16, SOGLIA_RAFFICA_ROSSO = 25;
+const SOGLIA_VENTO_GIALLO = 10, SOGLIA_RAFFICA_GIALLO = 18;
+const SOGLIA_PIOGGIA_PERC = 60;
+
+let punti = [];              // [{id, nome, lat, lon, orario:[], mare:[]}]
+let indiceOra = 0;
+let mappa = null;
+let marcatori = {};          // id -> L.marker
+let grafico = null;
+let puntoSelezionato = "roseto_nord";
+let timerAnimazione = null;
+
+function dataOggiRoma() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function coloreSeverita(oraDati) {
+  if (!oraDati) return "#4C6870";
+  if (oraDati.garbino_rischio || oraDati.vento_max_nodi >= SOGLIA_VENTO_ROSSO || oraDati.raffica_max_nodi >= SOGLIA_RAFFICA_ROSSO) return "#E0393E";
+  if (oraDati.vento_max_nodi >= SOGLIA_VENTO_GIALLO || oraDati.raffica_max_nodi >= SOGLIA_RAFFICA_GIALLO) return "#F0B429";
+  return "#2F9E44";
+}
+
+function classeMareria(altezza) {
+  if (altezza === null || altezza === undefined) return { testo: "n/d", classe: "" };
+  if (altezza < 0.3) return { testo: "calmo", classe: "verde" };
+  if (altezza <= 0.6) return { testo: "poco mosso", classe: "giallo" };
+  return { testo: "mosso", classe: "rosso" };
+}
+
+function formattaEtichettaOra(iso) {
+  const d = new Date(iso);
+  const oggi = dataOggiRoma();
+  const chiaveGiorno = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const ora = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(d);
+  const giornoTesto = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", weekday: "short", day: "numeric", month: "short" }).format(d);
+  let relativo = "";
+  const diffGiorni = Math.round((new Date(chiaveGiorno) - new Date(oggi)) / 86400000);
+  if (diffGiorni === 0) relativo = "OGGI";
+  else if (diffGiorni === 1) relativo = "DOMANI";
+  else if (diffGiorni === 2) relativo = "DOPODOMANI";
+  return `<span class="giorno-rel">${relativo || giornoTesto.toUpperCase()}</span> · ${giornoTesto} — ${ora}`;
+}
+
+// --- Caricamento dati ------------------------------------------------------
+async function caricaPrevisione() {
+  const statoIniziale = document.getElementById("stato-iniziale");
+  statoIniziale.textContent = "Caricamento previsione…";
+  statoIniziale.className = "stato-caricamento";
+
+  let oggi = dataOggiRoma();
+  let snap = await getDoc(doc(db, "meteoGiornaliero", oggi));
+
+  if (!snap.exists() || !snap.data().ultimaRilevazione) {
+    // fallback su ieri, stesso criterio usato dalla Cloud Function
+    const ancoraIeri = new Date();
+    ancoraIeri.setUTCDate(ancoraIeri.getUTCDate() - 1);
+    const ieri = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(ancoraIeri);
+    snap = await getDoc(doc(db, "meteoGiornaliero", ieri));
+  }
+
+  if (!snap.exists() || !snap.data().ultimaRilevazione || !snap.data().ultimaRilevazione.punti) {
+    statoIniziale.textContent = "Nessuna rilevazione disponibile al momento. Riprova tra qualche minuto.";
+    statoIniziale.className = "stato-errore";
+    return false;
+  }
+
+  const rilevazione = snap.data().ultimaRilevazione;
+  document.getElementById("nota-generato").textContent =
+    `I valori orari sono il consenso mediano di 5 modelli meteo, non un dato osservato. Ultima raccolta dati: ${new Date(rilevazione.generatoIl).toLocaleString("it-IT", { timeZone: "Europe/Rome" })}.`;
+
+  punti = ORDINE_PUNTI.map((id) => {
+    const p = rilevazione.punti.find((x) => x.punto === id) || rilevazione.punti.find((x) => x.id === id);
+    const fallback = PUNTI_GRIGLIA_FALLBACK[id];
+    if (!p) return null;
+    return {
+      id,
+      nome: p.nome || fallback.nome,
+      lat: p.lat || fallback.lat,
+      lon: p.lon || fallback.lon,
+      orario: p.orario || [],
+      mare: p.mare || [],
+    };
+  }).filter(Boolean);
+
+  if (!punti.length || !punti[0].orario.length) {
+    statoIniziale.textContent = "Dati orari non presenti in questa rilevazione.";
+    statoIniziale.className = "stato-errore";
+    return false;
+  }
+
+  statoIniziale.style.display = "none";
+  document.getElementById("contenuto-principale").style.display = "block";
+  return true;
+}
+
+// --- Mappa ------------------------------------------------------------------
+function trovaOraVicinaMare(mare, iso) {
+  if (!mare || !mare.length) return null;
+  return mare.find((m) => m.ora === iso) || null;
+}
+
+function inizializzaMappa() {
+  mappa = L.map("mappa-previsione", { zoomControl: true, attributionControl: false }).setView([42.65, 14.05], 11);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19 }).addTo(mappa);
+
+  for (const p of punti) {
+    const icona = L.divIcon({ className: "", html: `<div class="marcatore-punto" id="marcatore-${p.id}"><div class="marcatore-freccia">↑</div><div>--</div></div>`, iconSize: [46, 46], iconAnchor: [23, 23] });
+    const m = L.marker([p.lat, p.lon], { icon: icona }).addTo(mappa);
+    m.bindPopup(`<div class="popup-punto" id="popup-${p.id}"></div>`);
+    marcatori[p.id] = m;
+  }
+}
+
+function aggiornaMappa(iso) {
+  for (const p of punti) {
+    const oraDati = p.orario.find((o) => o.ora === iso);
+    const mareDati = trovaOraVicinaMare(p.mare, iso);
+    const el = document.getElementById(`marcatore-${p.id}`);
+    if (!el || !oraDati) continue;
+
+    const colore = coloreSeverita(oraDati);
+    el.style.background = colore;
+    const freccia = el.querySelector(".marcatore-freccia");
+    const direzione = oraDati.direzione_consenso_gradi;
+    freccia.style.transform = direzione !== null && direzione !== undefined ? `rotate(${direzione + 180}deg)` : "none";
+    el.querySelector("div:last-child").textContent = oraDati.vento_max_nodi !== null ? Math.round(oraDati.vento_max_nodi) : "--";
+
+    const mareInfo = classeMareria(mareDati ? mareDati.altezza_onda_m : null);
+    const popup = document.getElementById(`popup-${p.id}`);
+    if (popup) {
+      popup.innerHTML = `
+        <h3>${p.nome}</h3>
+        <p>Vento: <b>${oraDati.vento_consenso_nodi !== null ? oraDati.vento_consenso_nodi.toFixed(0) : "n/d"} nodi</b> (raffiche ${oraDati.raffica_max_nodi !== null ? oraDati.raffica_max_nodi.toFixed(0) : "n/d"})</p>
+        <p>Direzione: <b>${direzione !== null && direzione !== undefined ? Math.round(direzione) + "°" : "n/d"}</b></p>
+        <p>Mare: <b>${mareInfo.testo}</b> ${mareDati && mareDati.altezza_onda_m !== null ? `(${mareDati.altezza_onda_m.toFixed(2)} m)` : ""}</p>
+        <p>Pioggia: <b>${oraDati.probabilita_pioggia_perc !== null ? oraDati.probabilita_pioggia_perc + "%" : "n/d"}</b></p>
+        ${oraDati.garbino_rischio ? `<p style="color:#E0393E">⚠️ Rischio Garbino</p>` : ""}
+      `;
+    }
+  }
+}
+
+// --- Pannello dettaglio / chip punti -----------------------------------------
+function popolaSelettorePunti() {
+  const contenitore = document.getElementById("selettore-punti");
+  contenitore.innerHTML = "";
+  for (const p of punti) {
+    const chip = document.createElement("button");
+    chip.className = "chip-punto" + (p.id === puntoSelezionato ? " attivo" : "");
+    chip.textContent = p.nome;
+    chip.addEventListener("click", () => {
+      puntoSelezionato = p.id;
+      popolaSelettorePunti();
+      aggiornaGrigliaDati();
+      disegnaGrafico();
+    });
+    contenitore.appendChild(chip);
+  }
+}
+
+function aggiornaGrigliaDati() {
+  const punto = punti.find((p) => p.id === puntoSelezionato);
+  const griglia = document.getElementById("griglia-dati");
+  if (!punto) { griglia.innerHTML = ""; return; }
+  const iso = punto.orario[indiceOra] ? punto.orario[indiceOra].ora : null;
+  const oraDati = punto.orario[indiceOra];
+  const mareDati = trovaOraVicinaMare(punto.mare, iso);
+  const mareInfo = classeMareria(mareDati ? mareDati.altezza_onda_m : null);
+
+  function classeVento(v) {
+    if (v === null || v === undefined) return "";
+    if (v >= SOGLIA_VENTO_ROSSO) return "rosso";
+    if (v >= SOGLIA_VENTO_GIALLO) return "giallo";
+    return "verde";
+  }
+  function classeRaffica(r) {
+    if (r === null || r === undefined) return "";
+    if (r >= SOGLIA_RAFFICA_ROSSO) return "rosso";
+    if (r >= SOGLIA_RAFFICA_GIALLO) return "giallo";
+    return "verde";
+  }
+  function classePioggia(p) {
+    if (p === null || p === undefined) return "";
+    return p >= SOGLIA_PIOGGIA_PERC ? "rosso" : p >= 30 ? "giallo" : "verde";
+  }
+
+  griglia.innerHTML = `
+    <div class="cella-dato"><div class="etichetta">Vento</div><div class="valore ${classeVento(oraDati.vento_max_nodi)}">${oraDati.vento_consenso_nodi !== null ? oraDati.vento_consenso_nodi.toFixed(0) : "--"} kt</div></div>
+    <div class="cella-dato"><div class="etichetta">Raffiche</div><div class="valore ${classeRaffica(oraDati.raffica_max_nodi)}">${oraDati.raffica_max_nodi !== null ? oraDati.raffica_max_nodi.toFixed(0) : "--"} kt</div></div>
+    <div class="cella-dato"><div class="etichetta">Mare</div><div class="valore ${mareInfo.classe}">${mareInfo.testo}</div></div>
+    <div class="cella-dato"><div class="etichetta">Pioggia</div><div class="valore ${classePioggia(oraDati.probabilita_pioggia_perc)}">${oraDati.probabilita_pioggia_perc !== null ? oraDati.probabilita_pioggia_perc + "%" : "--"}</div></div>
+  `;
+}
+
+// --- Grafico 72h con indicatore sincronizzato --------------------------------
+function disegnaGrafico() {
+  const punto = punti.find((p) => p.id === puntoSelezionato);
+  if (!punto) return;
+  const canvas = document.getElementById("grafico-72h");
+  const etichette = punto.orario.map((o) => new Date(o.ora));
+  const ventoDati = punto.orario.map((o) => o.vento_consenso_nodi);
+  const onda = punto.orario.map((o) => {
+    const m = trovaOraVicinaMare(punto.mare, o.ora);
+    return m ? m.altezza_onda_m : null;
+  });
+
+  if (grafico) grafico.destroy();
+  grafico = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: etichette,
+      datasets: [
+        {
+          label: "Vento (nodi)",
+          data: ventoDati,
+          borderColor: "#7FA0A8",
+          backgroundColor: "rgba(127,160,168,0.12)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          yAxisID: "y",
+        },
+        {
+          label: "Onda (m)",
+          data: onda,
+          borderColor: "#C99B4A",
+          borderDash: [4, 3],
+          fill: false,
+          tension: 0.3,
+          pointRadius: 0,
+          yAxisID: "y1",
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      onClick: (evt, elementi, chart) => {
+        const punti2 = chart.getElementsAtEventForMode(evt, "index", { intersect: false }, true);
+        if (punti2.length) {
+          indiceOra = punti2[0].index;
+          document.getElementById("slider-tempo").value = indiceOra;
+          aggiornaTutto();
+        }
+      },
+      plugins: {
+        legend: { labels: { color: "#7FA0A8", font: { size: 10 } } },
+        tooltip: { callbacks: { title: (items) => new Date(items[0].parsed.x).toLocaleString("it-IT", { timeZone: "Europe/Rome", weekday: "short", hour: "2-digit", minute: "2-digit" }) } },
+      },
+      scales: {
+        x: { type: "time", time: { unit: "hour" }, ticks: { color: "#4C6870", maxTicksLimit: 8 }, grid: { color: "rgba(35,70,83,0.4)" } },
+        y: { position: "left", ticks: { color: "#7FA0A8" }, grid: { color: "rgba(35,70,83,0.4)" }, title: { display: true, text: "nodi", color: "#7FA0A8" } },
+        y1: { position: "right", ticks: { color: "#C99B4A" }, grid: { display: false }, title: { display: true, text: "metri", color: "#C99B4A" } },
+      },
+    },
+    plugins: [{
+      id: "lineaTempo",
+      afterDraw: (chart) => {
+        const x = chart.scales.x.getPixelForValue(etichette[indiceOra]);
+        const { top, bottom } = chart.chartArea;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#E8F0EE";
+        ctx.stroke();
+        ctx.restore();
+      },
+    }],
+  });
+}
+
+// --- Pillole giorno -----------------------------------------------------------
+function popolaPilloleGiorno() {
+  const contenitore = document.getElementById("pillole-giorno");
+  contenitore.innerHTML = "";
+  const etichette = ["Oggi", "Domani", "Dopodomani"];
+  const riferimento = punti[0].orario;
+  const oggiChiave = dataOggiRoma();
+
+  etichette.forEach((testo, offset) => {
+    const target = new Date(oggiChiave);
+    target.setDate(target.getDate() + offset);
+    const chiaveTarget = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(target);
+    const idx = riferimento.findIndex((o) => {
+      const chiaveOra = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date(o.ora));
+      const ora = new Date(o.ora).getUTCHours();
+      return chiaveOra === chiaveTarget;
+    });
+    if (idx === -1) return;
+    const pillola = document.createElement("button");
+    pillola.className = "pillola-giorno";
+    pillola.textContent = testo;
+    pillola.addEventListener("click", () => {
+      indiceOra = idx;
+      document.getElementById("slider-tempo").value = idx;
+      aggiornaTutto();
+    });
+    contenitore.appendChild(pillola);
+  });
+}
+
+// --- Ciclo di aggiornamento principale ----------------------------------------
+function aggiornaTutto() {
+  const punto0 = punti[0];
+  const iso = punto0.orario[indiceOra] ? punto0.orario[indiceOra].ora : null;
+  if (!iso) return;
+  document.getElementById("etichetta-orario").innerHTML = formattaEtichettaOra(iso);
+  aggiornaMappa(iso);
+  aggiornaGrigliaDati();
+  if (grafico) {
+    grafico.update("none");
+  }
+}
+
+function avviaAnimazione() {
+  const btn = document.getElementById("btn-play");
+  if (timerAnimazione) {
+    clearInterval(timerAnimazione);
+    timerAnimazione = null;
+    btn.textContent = "▶";
+    return;
+  }
+  btn.textContent = "⏸";
+  const slider = document.getElementById("slider-tempo");
+  timerAnimazione = setInterval(() => {
+    indiceOra = (indiceOra + 1) % (punti[0].orario.length);
+    slider.value = indiceOra;
+    aggiornaTutto();
+  }, 350);
+}
+
+async function avviaPagina() {
+  const ok = await caricaPrevisione();
+  if (!ok) return;
+
+  const slider = document.getElementById("slider-tempo");
+  slider.max = punti[0].orario.length - 1;
+
+  // posiziona lo slider sull'ora più vicina ad adesso
+  const adesso = Date.now();
+  let migliore = 0, distanzaMin = Infinity;
+  punti[0].orario.forEach((o, i) => {
+    const d = Math.abs(new Date(o.ora).getTime() - adesso);
+    if (d < distanzaMin) { distanzaMin = d; migliore = i; }
+  });
+  indiceOra = migliore;
+  slider.value = indiceOra;
+
+  inizializzaMappa();
+  popolaSelettorePunti();
+  popolaPilloleGiorno();
+  disegnaGrafico();
+  aggiornaTutto();
+
+  slider.addEventListener("input", () => {
+    indiceOra = parseInt(slider.value, 10);
+    aggiornaTutto();
+  });
+  document.getElementById("btn-play").addEventListener("click", avviaAnimazione);
+}
+
+// --- Autenticazione (identico pattern delle altre pagine) ---------------------
+onAuthStateChanged(auth, (utente) => {
+  document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  if (utente) avviaPagina();
+});
+
+setPersistence(auth, browserLocalPersistence);
+
+document.getElementById("login-bottone").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const errore = document.getElementById("login-errore");
+  errore.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    errore.textContent = "Accesso non riuscito — controlla email e password.";
+  }
+});
+</script>
+</body>
+</html>
