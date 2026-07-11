@@ -802,36 +802,44 @@ function avviaAnimazioneParticelle() {
     if (ts - ultimoFrameMs < 33) { requestAnimationFrame(passo); return; } // ~30fps, più leggero su mobile
     ultimoFrameMs = ts;
 
-    if (ctxParticelle && canvasParticelle) {
-      const w = canvasParticelle.width, h = canvasParticelle.height;
+    try {
+      if (ctxParticelle && canvasParticelle) {
+        const w = canvasParticelle.width, h = canvasParticelle.height;
 
-      // Dissolvenza verso il TRASPARENTE (non verso il nero): riduce
-      // l'alpha di quello già disegnato senza tingerlo, lasciando intatto
-      // il campo colorato sottostante sull'altro canvas.
-      ctxParticelle.globalCompositeOperation = "destination-in";
-      ctxParticelle.fillStyle = "rgba(0,0,0,0.90)";
-      ctxParticelle.fillRect(0, 0, w, h);
-      ctxParticelle.globalCompositeOperation = "source-over";
+        // Dissolvenza verso il TRASPARENTE (non verso il nero): riduce
+        // l'alpha di quello già disegnato senza tingerlo, lasciando intatto
+        // il campo colorato sottostante sull'altro canvas.
+        ctxParticelle.globalCompositeOperation = "destination-in";
+        ctxParticelle.fillStyle = "rgba(0,0,0,0.90)";
+        ctxParticelle.fillRect(0, 0, w, h);
+        ctxParticelle.globalCompositeOperation = "source-over";
 
-      for (const part of particelle) {
-        const vett = campionaVettore(part.x, part.y);
-        part.px = part.x; part.py = part.y;
-        if (!vett) { Object.assign(part, nuovaParticella()); continue; }
-        const scala = variabileCampo === "vento" ? 0.09 : 0.6; // le correnti sono ~10-20x più lente del vento in nodi: senza questo le particelle sembrerebbero ferme
-        part.x += vett.vx * scala;
-        part.y += vett.vy * scala;
-        part.eta++;
-        if (part.eta > part.etaMax || part.x < 0 || part.x > w || part.y < 0 || part.y > h) {
-          Object.assign(part, nuovaParticella());
-          continue;
+        for (const part of particelle) {
+          const vett = campionaVettore(part.x, part.y);
+          part.px = part.x; part.py = part.y;
+          if (!vett) { Object.assign(part, nuovaParticella()); continue; }
+          const scala = variabileCampo === "vento" ? 0.09 : 0.6; // le correnti sono ~10-20x più lente del vento in nodi: senza questo le particelle sembrerebbero ferme
+          part.x += vett.vx * scala;
+          part.y += vett.vy * scala;
+          part.eta++;
+          if (part.eta > part.etaMax || part.x < 0 || part.x > w || part.y < 0 || part.y > h) {
+            Object.assign(part, nuovaParticella());
+            continue;
+          }
+          ctxParticelle.strokeStyle = "rgba(232,240,238,0.85)";
+          ctxParticelle.lineWidth = 1.1;
+          ctxParticelle.beginPath();
+          ctxParticelle.moveTo(part.px, part.py);
+          ctxParticelle.lineTo(part.x, part.y);
+          ctxParticelle.stroke();
         }
-        ctxParticelle.strokeStyle = "rgba(232,240,238,0.85)";
-        ctxParticelle.lineWidth = 1.1;
-        ctxParticelle.beginPath();
-        ctxParticelle.moveTo(part.px, part.py);
-        ctxParticelle.lineTo(part.x, part.y);
-        ctxParticelle.stroke();
       }
+    } catch (err) {
+      // Un errore in un singolo fotogramma non deve fermare l'animazione
+      // per sempre: senza questo try/catch, un problema anche minore in un
+      // frame avrebbe interrotto la catena di requestAnimationFrame in modo
+      // permanente e silenzioso (nessun errore visibile, animazione morta).
+      console.error("Errore in un fotogramma dell'animazione:", err);
     }
     requestAnimationFrame(passo);
   }
@@ -1032,10 +1040,16 @@ function popolaPilloleGiorno() {
 function aggiornaTutto() {
   const istante = timelineMaster[indiceOra];
   if (!istante) return;
-  document.getElementById("etichetta-orario").innerHTML = formattaEtichettaOra(istante);
-  aggiornaGrigliaDati();
-  ricalcolaCampoDati();
-  if (grafico) grafico.update("none");
+
+  try {
+    document.getElementById("etichetta-orario").innerHTML = formattaEtichettaOra(istante);
+  } catch (err) {
+    console.error("Errore formattazione orario:", err, istante);
+    document.getElementById("etichetta-orario").textContent = istante.toString();
+  }
+  try { aggiornaGrigliaDati(); } catch (err) { console.error("Errore griglia dati:", err); }
+  try { ricalcolaCampoDati(); } catch (err) { console.error("Errore ricalcolo campo:", err); }
+  if (grafico) { try { grafico.update("none"); } catch (err) { console.error("Errore aggiornamento grafico:", err); } }
 }
 
 function avviaAnimazione() {
@@ -1071,12 +1085,13 @@ async function avviaPagina() {
   indiceOra = migliore;
   slider.value = indiceOra;
 
-  inizializzaMappa();
-  popolaSelettorePunti();
-  popolaPilloleGiorno();
-  disegnaGrafico();
-  aggiornaTutto();
-
+  // IMPORTANTE: i controlli essenziali (slider, play, switch vento/mare) si
+  // attaccano SUBITO, prima di toccare mappa/campo colorato/grafico. Se uno
+  // di quei pezzi più elaborati lancia un errore, non deve portarsi dietro
+  // anche i controlli di base — prima erano tutti attaccati DOPO
+  // l'inizializzazione della mappa, quindi un errore lì dentro (mappa,
+  // canvas, interpolazione) faceva sì che slider/play/switch non venissero
+  // MAI collegati, restando come "morti" senza nessun errore visibile.
   slider.addEventListener("input", () => {
     indiceOra = parseInt(slider.value, 10);
     aggiornaTutto();
@@ -1085,6 +1100,14 @@ async function avviaPagina() {
   document.getElementById("btn-variabile-vento").addEventListener("click", () => attivaVariabile("vento"));
   document.getElementById("btn-variabile-mare").addEventListener("click", () => attivaVariabile("mare"));
   aggiornaLegendaCampo();
+
+  // Ognuno di questi è isolato: se uno fallisce, gli altri (e i controlli
+  // già attaccati sopra) continuano comunque a funzionare.
+  try { inizializzaMappa(); } catch (err) { console.error("Errore inizializzazione mappa/campo:", err); }
+  try { popolaSelettorePunti(); } catch (err) { console.error("Errore selettore punti:", err); }
+  try { popolaPilloleGiorno(); } catch (err) { console.error("Errore pillole giorno:", err); }
+  try { disegnaGrafico(); } catch (err) { console.error("Errore grafico:", err); }
+  try { aggiornaTutto(); } catch (err) { console.error("Errore aggiornamento iniziale:", err); }
 }
 
 function aggiornaLegendaCampo() {
@@ -1113,9 +1136,13 @@ async function attivaVariabile(nuovaVariabile) {
     const box = document.getElementById("caricamento-mare");
     const percentualeEl = document.getElementById("caricamento-mare-percentuale");
     box.style.display = "block";
-    await caricaDatiMareEstesi((fatti, totali) => {
-      percentualeEl.textContent = Math.round((fatti / totali) * 100) + "%";
-    });
+    try {
+      await caricaDatiMareEstesi((fatti, totali) => {
+        percentualeEl.textContent = Math.round((fatti / totali) * 100) + "%";
+      });
+    } catch (err) {
+      console.error("Errore caricamento dati mare estesi:", err);
+    }
     box.style.display = "none";
   }
 
@@ -1123,7 +1150,11 @@ async function attivaVariabile(nuovaVariabile) {
   document.getElementById("btn-variabile-vento").classList.toggle("attiva", nuovaVariabile === "vento");
   document.getElementById("btn-variabile-mare").classList.toggle("attiva", nuovaVariabile === "mare");
   aggiornaLegendaCampo();
-  ricalcolaCampoCompleto(); // qui SÌ reset particelle: la grandezza fisica è cambiata, niente scia da "continuare"
+  try {
+    ricalcolaCampoCompleto(); // qui SÌ reset particelle: la grandezza fisica è cambiata, niente scia da "continuare"
+  } catch (err) {
+    console.error("Errore ricalcolo campo dopo switch:", err);
+  }
 }
 
 // --- Autenticazione (identico pattern delle altre pagine) ---------------------
