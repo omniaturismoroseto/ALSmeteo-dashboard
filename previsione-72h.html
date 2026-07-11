@@ -109,6 +109,16 @@
 
   /* --- Mappa ------------------------------------------------------------ */
   #mappa-previsione { height: 440px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-panel-raised); position: relative; }
+
+  .puntino-roseto { display: flex; align-items: center; gap: 0.4rem; pointer-events: none; }
+  .pallino-roseto {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--ink);
+    border: 2px solid var(--brass); box-shadow: 0 0 0 3px rgba(10,28,36,0.6); flex: none;
+  }
+  .etichetta-roseto {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.72rem; color: var(--ink);
+    background: rgba(10,28,36,0.75); padding: 0.1rem 0.4rem; border-radius: 5px; white-space: nowrap;
+  }
   .canvas-campo-vento { position: absolute; top: 0; left: 0; pointer-events: none; }
 
   .legenda-campo { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.7rem; font-size: 0.68rem; color: var(--ink-muted); }
@@ -126,6 +136,27 @@
     text-align: center; font-size: 0.75rem; color: var(--brass); padding: 0.6rem;
     background: var(--bg-panel-raised); border-radius: 8px; margin-top: 0.6rem;
   }
+
+  .tabella-oraria-contenitore { max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .riga-tabella-oraria {
+    display: grid; grid-template-columns: 1.3fr 1fr 0.9fr 1fr 0.8fr 0.8fr;
+    gap: 0.4rem; padding: 0.5rem 0.7rem; font-size: 0.76rem; align-items: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .riga-tabella-oraria:last-child { border-bottom: none; }
+  .intestazione-tabella-oraria {
+    position: sticky; top: 0; background: var(--bg-panel-raised); color: var(--ink-faint);
+    font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; z-index: 1;
+  }
+  .riga-oraria-dato { cursor: pointer; background: var(--bg-panel); }
+  .riga-oraria-dato:active { background: var(--bg-panel-raised); }
+  .riga-oraria-dato.riga-attiva { background: var(--brass-dim); }
+  .riga-oraria-dato .cella-vento { display: flex; align-items: center; gap: 0.3rem; }
+  .riga-oraria-dato .freccia-vento-tabella { display: inline-block; font-size: 0.85rem; }
+  .riga-oraria-dato .giorno-riga { color: var(--ink-faint); font-size: 0.66rem; display: block; }
+  .valore-severo-verde { color: var(--flag-verde); }
+  .valore-severo-giallo { color: var(--flag-giallo); }
+  .valore-severo-rosso { color: var(--flag-rosso); font-weight: 600; }
 
   .leaflet-popup-content-wrapper { background: var(--bg-panel-raised); color: var(--ink); border-radius: 10px; }
   .leaflet-popup-tip { background: var(--bg-panel-raised); }
@@ -243,6 +274,17 @@
     <div class="griglia-dati" id="griglia-dati"></div>
     <div class="grafico-contenitore"><canvas id="grafico-72h"></canvas></div>
     <p class="nota-disclaimer" id="nota-generato">I punti Roseto/Pineto usano il consenso mediano di 5 modelli (ECMWF, GFS, ICON, Météo-France, MET Norway) su 72h. I punti della costa estesa usano un solo modello (best_match) su 72h, pensato per un quadro d'insieme, non per la massima precisione locale — trattali come indicativi.</p>
+  </div>
+
+  <div class="pannello">
+    <p class="titolo-sezione">Previsione oraria scritta — Roseto degli Abruzzi</p>
+    <div class="tabella-oraria-contenitore" id="tabella-oraria-contenitore">
+      <div class="riga-tabella-oraria intestazione-tabella-oraria">
+        <span>Ora</span><span>Vento</span><span>Raffiche</span><span>Mare</span><span>Pioggia</span><span>Temp.</span>
+      </div>
+      <div id="corpo-tabella-oraria"></div>
+    </div>
+    <p class="nota-disclaimer">Clicca una riga per portare lì la mappa e lo slider in alto.</p>
   </div>
 
 </main>
@@ -543,7 +585,23 @@ function inizializzaMappa() {
   mappa.on("moveend zoomend", () => { ridimensionaCanvasCampo(); ricalcolaCampoCompleto(); });
   window.addEventListener("resize", () => { ridimensionaCanvasCampo(); ricalcolaCampoCompleto(); });
 
+  aggiungiPuntinoRoseto();
   avviaAnimazioneParticelle();
+}
+
+// Un solo puntino fisso, non un marcatore dati — serve solo a farsi capire
+// dove si trova Roseto quando si è zoomati fuori a vedere tutta Italia (col
+// campo colorato da solo non si riconosce più nessun riferimento geografico).
+function aggiungiPuntinoRoseto() {
+  const centro = [
+    (PUNTI_CORE_FALLBACK.roseto_nord.lat + PUNTI_CORE_FALLBACK.roseto_sud.lat) / 2,
+    (PUNTI_CORE_FALLBACK.roseto_nord.lon + PUNTI_CORE_FALLBACK.roseto_sud.lon) / 2,
+  ];
+  const icona = L.divIcon({
+    className: "", iconSize: [130, 20], iconAnchor: [8, 8],
+    html: `<div class="puntino-roseto"><span class="pallino-roseto"></span><span class="etichetta-roseto">Roseto degli Abruzzi</span></div>`,
+  });
+  L.marker(centro, { icon: icona, zIndexOffset: 2000, interactive: false }).addTo(mappa);
 }
 
 function ridimensionaCanvasCampo() {
@@ -1002,6 +1060,68 @@ function disegnaGrafico() {
 }
 
 // --- Pillole giorno -----------------------------------------------------------
+// --- Tabella oraria scritta per Roseto ---------------------------------------
+// Usa roseto_nord come punto rappresentativo — è anche puntiCore[0], quindi
+// il suo array orario è esattamente lo stesso che genera timelineMaster: gli
+// indici combaciano 1 a 1 con lo slider, nessuna ricerca "ora più vicina" da fare.
+function formattaEtichettaRigaOraria(iso) {
+  const d = new Date(iso);
+  const oggi = dataOggiRoma();
+  const chiaveGiorno = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const ora = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(d);
+  const diffGiorni = Math.round((new Date(chiaveGiorno) - new Date(oggi)) / 86400000);
+  let giornoTesto;
+  if (diffGiorni === 0) giornoTesto = "Oggi";
+  else if (diffGiorni === 1) giornoTesto = "Domani";
+  else giornoTesto = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", weekday: "short", day: "numeric" }).format(d);
+  return { giornoTesto, ora };
+}
+
+function popolaTabellaOraria() {
+  const punto = puntiCore.find((p) => p.id === "roseto_nord");
+  const corpo = document.getElementById("corpo-tabella-oraria");
+  if (!punto || !corpo) return;
+  corpo.innerHTML = "";
+
+  punto.orario.forEach((o, idx) => {
+    const { giornoTesto, ora } = formattaEtichettaRigaOraria(o.ora);
+    const mareInfo = classeMareria(o.altezza_onda_m);
+    const rotazione = o.direzione_gradi !== null && o.direzione_gradi !== undefined ? o.direzione_gradi + 180 : 0;
+
+    const classeVento = o.vento_nodi === null ? "" : o.vento_nodi >= SOGLIA_VENTO_ROSSO ? "valore-severo-rosso" : o.vento_nodi >= SOGLIA_VENTO_GIALLO ? "valore-severo-giallo" : "valore-severo-verde";
+    const classeRaffica = o.raffica_nodi === null ? "" : o.raffica_nodi >= SOGLIA_RAFFICA_ROSSO ? "valore-severo-rosso" : o.raffica_nodi >= SOGLIA_RAFFICA_GIALLO ? "valore-severo-giallo" : "";
+    const classePioggia = o.pioggia_perc === null ? "" : o.pioggia_perc >= SOGLIA_PIOGGIA_PERC ? "valore-severo-rosso" : o.pioggia_perc >= 30 ? "valore-severo-giallo" : "";
+
+    const riga = document.createElement("div");
+    riga.className = "riga-tabella-oraria riga-oraria-dato";
+    riga.dataset.indice = idx;
+    riga.innerHTML = `
+      <span><span class="giorno-riga">${giornoTesto}</span>${ora}</span>
+      <span class="cella-vento"><span class="freccia-vento-tabella" style="transform:rotate(${rotazione}deg)">↑</span><span class="${classeVento}">${o.vento_nodi !== null ? o.vento_nodi.toFixed(0) : "--"} kt</span></span>
+      <span class="${classeRaffica}">${o.raffica_nodi !== null ? o.raffica_nodi.toFixed(0) : "--"} kt</span>
+      <span>${mareInfo.testo}${o.altezza_onda_m !== null ? " (" + o.altezza_onda_m.toFixed(1) + "m)" : ""}</span>
+      <span class="${classePioggia}">${o.pioggia_perc !== null ? o.pioggia_perc + "%" : "--"}</span>
+      <span>${o.temperatura_c !== null ? o.temperatura_c.toFixed(0) + "°" : "--"}</span>
+      ${o.garbino ? '<span style="grid-column:1/-1;color:var(--flag-rosso);font-size:0.68rem;padding-top:0.2rem;">⚠️ Rischio Garbino</span>' : ""}
+    `;
+    riga.addEventListener("click", () => {
+      indiceOra = idx;
+      document.getElementById("slider-tempo").value = idx;
+      aggiornaTutto();
+    });
+    corpo.appendChild(riga);
+  });
+}
+
+function aggiornaEvidenziazioneTabellaOraria() {
+  const corpo = document.getElementById("corpo-tabella-oraria");
+  if (!corpo) return;
+  const precedente = corpo.querySelector(".riga-attiva");
+  if (precedente) precedente.classList.remove("riga-attiva");
+  const nuova = corpo.querySelector(`[data-indice="${indiceOra}"]`);
+  if (nuova) nuova.classList.add("riga-attiva");
+}
+
 function popolaPilloleGiorno() {
   const contenitore = document.getElementById("pillole-giorno");
   contenitore.innerHTML = "";
@@ -1038,6 +1158,7 @@ function aggiornaTutto() {
     document.getElementById("etichetta-orario").textContent = istante.toString();
   }
   try { aggiornaGrigliaDati(); } catch (err) { console.error("Errore griglia dati:", err); }
+  try { aggiornaEvidenziazioneTabellaOraria(); } catch (err) { console.error("Errore evidenziazione tabella:", err); }
   try { ricalcolaCampoDati(); } catch (err) { console.error("Errore ricalcolo campo:", err); }
   if (grafico) { try { grafico.update("none"); } catch (err) { console.error("Errore aggiornamento grafico:", err); } }
 }
@@ -1097,6 +1218,7 @@ async function avviaPagina() {
   try { popolaSelettorePunti(); } catch (err) { console.error("Errore selettore punti:", err); }
   try { popolaPilloleGiorno(); } catch (err) { console.error("Errore pillole giorno:", err); }
   try { disegnaGrafico(); } catch (err) { console.error("Errore grafico:", err); }
+  try { popolaTabellaOraria(); } catch (err) { console.error("Errore tabella oraria:", err); }
   try { aggiornaTutto(); } catch (err) { console.error("Errore aggiornamento iniziale:", err); }
 }
 
