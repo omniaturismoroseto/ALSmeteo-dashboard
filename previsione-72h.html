@@ -160,10 +160,6 @@
 
   .nota-disclaimer { font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.9rem; line-height: 1.5; }
 
-  .windy-contenitore { position: relative; width: 100%; padding-bottom: 62%; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
-  .windy-contenitore iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
-  @media (max-width: 560px) { .windy-contenitore { padding-bottom: 90%; } }
-
   .stato-caricamento, .stato-errore { text-align: center; padding: 3rem 1rem; color: var(--ink-muted); font-size: 0.85rem; }
   .stato-errore { color: var(--flag-rosso); }
 
@@ -235,7 +231,7 @@
         <div class="barra-legenda-campo-etichette" id="barra-legenda-campo-etichette"><span>0</span><span>5</span><span>10</span><span>20</span><span>30</span><span>40</span><span>60+</span></div>
       </div>
     </div>
-    <p class="nota-disclaimer" id="nota-campo" style="margin-top:0.3rem;">Campo interpolato tra i punti reali (zona Abruzzo) — non un dato di modello a griglia: è una stima smussata, più affidabile vicino alla costa che al largo o ai bordi della mappa.</p>
+    <p class="nota-disclaimer" id="nota-campo" style="margin-top:0.3rem;">Campo interpolato tra i punti reali lungo la costa adriatica (dall'Istria al Salento) — non un dato di modello a griglia. Zoomabile su tutta Italia: il colore compare solo entro un raggio ragionevole da un punto reale, niente colore "inventato" lontano dalla costa (es. Tirreno, entroterra) o dove non abbiamo dati.</p>
     <div class="legenda">
       <div id="nota-legenda-generica">Il colore della mappa segue la scala qui sopra · seleziona un punto qui sotto per il dettaglio numerico e il grafico</div>
     </div>
@@ -247,22 +243,6 @@
     <div class="griglia-dati" id="griglia-dati"></div>
     <div class="grafico-contenitore"><canvas id="grafico-72h"></canvas></div>
     <p class="nota-disclaimer" id="nota-generato">I punti Roseto/Pineto usano il consenso mediano di 5 modelli (ECMWF, GFS, ICON, Météo-France, MET Norway) su 72h. I punti della costa estesa usano un solo modello (best_match) su 72h, pensato per un quadro d'insieme, non per la massima precisione locale — trattali come indicativi.</p>
-  <div class="pannello">
-    <p class="titolo-sezione">Confronto — Windy (dati di modello reali, non interpolati)</p>
-    <div class="windy-contenitore">
-      <iframe
-        title="Windy"
-        src="https://embed.windy.com/embed2.html?lat=42.65&lon=14.10&detailLat=42.65&detailLon=14.10&zoom=9&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=true&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"
-        frameborder="0"
-        loading="lazy"
-      ></iframe>
-    </div>
-    <p class="nota-disclaimer">
-      Widget gratuito di Windy.com (nessun cookie/tracciamento). Nota d'uso onesta: Windy riserva ufficialmente l'embed gratuito a "uso media" nei suoi termini — per un utilizzo pienamente conforme in un'app professionale servirebbe la loro API a pagamento (api.windy.com). In pratica l'iframe libero viene usato ovunque senza controlli, ma è giusto che tu lo sappia.
-      Per Windfinder (spot "Roseto degli Abruzzi" già censito da loro) genera il tuo widget personalizzato su
-      <a class="link-plancia" href="https://www.windfinder.com/widget/configurator/roseto_degli_abruzzi" target="_blank" rel="noopener">windfinder.com/widget/configurator/roseto_degli_abruzzi</a>
-      — è gratuito per siti web (non per app), max 3 widget per pagina. Copio qui io il codice se mi incolli quello che ti generano.
-    </p>
   </div>
 
 </main>
@@ -304,12 +284,6 @@ const SOGLIA_VENTO_ROSSO = 16, SOGLIA_RAFFICA_ROSSO = 25;
 const SOGLIA_VENTO_GIALLO = 10, SOGLIA_RAFFICA_GIALLO = 18;
 const SOGLIA_PIOGGIA_PERC = 60;
 const TOLLERANZA_MATCH_MS = 40 * 60 * 1000; // 40 minuti di tolleranza per il match orario dei punti estesi
-
-// --- Zona Abruzzo: bbox della mappa + margine per includere punti utili
-// all'interpolazione (Giulianova a nord, Vasto/Termoli a sud) senza
-// trascinarci dentro Trieste o Bari, che falserebbero il campo interpolato.
-const ABRUZZO_BOUNDS = L.latLngBounds([41.75, 13.75], [42.95, 14.65]);
-const ABRUZZO_MARGINE_INTERPOLAZIONE = 0.5; // gradi, per non far sparire il campo ai bordi
 
 // --- Stato del campo colorato continuo + particelle -------------------------
 let paneCampo = null;
@@ -547,8 +521,11 @@ async function caricaPrevisione() {
 
 // --- Mappa ------------------------------------------------------------------
 function inizializzaMappa() {
-  mappa = L.map("mappa-previsione", { zoomControl: true, attributionControl: false, maxBounds: ABRUZZO_BOUNDS.pad(0.15), minZoom: 9 });
-  mappa.fitBounds(ABRUZZO_BOUNDS);
+  // Vista di partenza su Roseto/Pineto (zona operativa), ma niente più
+  // maxBounds/minZoom che impedivano di allontanarsi — ora si può zoomare
+  // liberamente fino a vedere tutta Italia (e oltre), o stringere sul
+  // dettaglio locale.
+  mappa = L.map("mappa-previsione", { zoomControl: true, attributionControl: false, minZoom: 5, maxZoom: 16 }).setView([42.65, 14.10], 10);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19 }).addTo(mappa);
 
   // Pane dedicato al campo colorato: sopra le tile, sotto i marcatori, così
@@ -630,16 +607,10 @@ function coloreDaValore(valore, tappe) {
 // cosa vista in due modi, coerente con come vista-adriatico.html mostra già
 // vento e corrente come due strati separati.
 function puntiPerCampo(istante) {
-  const margine = ABRUZZO_MARGINE_INTERPOLAZIONE;
-  const dentroMargine = (p) =>
-    p.lat >= ABRUZZO_BOUNDS.getSouth() - margine && p.lat <= ABRUZZO_BOUNDS.getNorth() + margine &&
-    p.lon >= ABRUZZO_BOUNDS.getWest() - margine && p.lon <= ABRUZZO_BOUNDS.getEast() + margine;
-
   const risultato = [];
 
   if (variabileCampo === "vento") {
     for (const p of tuttiIPunti()) {
-      if (!dentroMargine(p)) continue;
       const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
       if (!oraDati || oraDati.vento_nodi === null || oraDati.vento_nodi === undefined) continue;
       const direzioneRad = ((oraDati.direzione_gradi ?? 0) + 180) * Math.PI / 180; // dove il vento VA, non da dove viene
@@ -655,7 +626,6 @@ function puntiPerCampo(istante) {
 
   // variabileCampo === "mare"
   for (const p of puntiCore) {
-    if (!dentroMargine(p)) continue;
     const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
     if (!oraDati || oraDati.altezza_onda_m === null || oraDati.altezza_onda_m === undefined) continue;
     const correnteNodi = oraDati.corrente_nodi ?? 0;
@@ -668,7 +638,7 @@ function puntiPerCampo(istante) {
     });
   }
   for (const p of puntiEstesi) {
-    if (!dentroMargine(p) || !p.mareOrario) continue;
+    if (!p.mareOrario) continue;
     const oraDati = trovaVoceVicina(p.mareOrario, istante, 45 * 60 * 1000);
     if (!oraDati || oraDati.altezza_onda_m === null || oraDati.altezza_onda_m === undefined) continue;
     const correnteNodi = oraDati.corrente_nodi ?? 0;
@@ -698,12 +668,22 @@ function calcolaCampo() {
 
   const tappeColore = variabileCampo === "vento" ? TAPPE_COLORE_VENTO_KT : TAPPE_COLORE_MARE_M;
 
+  // Oltre questa distanza (in pixel schermo) dal punto reale più vicino, non
+  // coloriamo né animiamo nulla: senza questo limite l'IDW estrapola
+  // all'infinito, dipingendo anche il Tirreno o l'entroterra sulla base di
+  // punti lontanissimi — un dato inventato che sembra vero. Un valore fisso
+  // in pixel si adatta bene allo zoom: più si zooma indietro, più km copre,
+  // che è quello che si vuole (la "fascia" costiera resta visibile anche a
+  // vista Italia intera, invece di ridursi a puntini invisibili).
+  const SOGLIA_COPERTURA_PX = 150;
+
   const cellPx = 10;
   const cols = Math.ceil(canvasCampo.width / cellPx);
   const rows = Math.ceil(canvasCampo.height / cellPx);
   const vx = new Float32Array(cols * rows);
   const vy = new Float32Array(cols * rows);
   const valore = new Float32Array(cols * rows);
+  const copertura = new Uint8Array(cols * rows);
 
   const immagine = ctxCampo.createImageData(canvasCampo.width, canvasCampo.height);
 
@@ -712,9 +692,10 @@ function calcolaCampo() {
       const cx = col * cellPx + cellPx / 2;
       const cy = riga * cellPx + cellPx / 2;
 
-      let sommaPesi = 0, sVx = 0, sVy = 0, sValore = 0;
+      let sommaPesi = 0, sVx = 0, sVy = 0, sValore = 0, distanzaMin2 = Infinity;
       for (const p of puntiPx) {
         const d2 = (p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy);
+        if (d2 < distanzaMin2) distanzaMin2 = d2;
         const peso = 1 / Math.max(d2, 400); // 400 = clamp per evitare pesi infiniti troppo vicino al punto
         sommaPesi += peso;
         sVx += p.vx * peso;
@@ -722,12 +703,20 @@ function calcolaCampo() {
         sValore += p.valoreColore * peso;
       }
       const idx = riga * cols + col;
+      const dentroCopertura = distanzaMin2 <= SOGLIA_COPERTURA_PX * SOGLIA_COPERTURA_PX;
+      copertura[idx] = dentroCopertura ? 1 : 0;
+
+      if (!dentroCopertura) continue; // resta trasparente, alpha già a 0 di default in ImageData
+
       vx[idx] = sVx / sommaPesi;
       vy[idx] = sVy / sommaPesi;
       valore[idx] = sValore / sommaPesi;
 
       const [r, g, b] = coloreDaValore(valore[idx], tappeColore);
-      const alpha = Math.round(255 * 0.42);
+      // Alpha sfuma verso i bordi della copertura invece di tagliare di netto.
+      const distanzaMin = Math.sqrt(distanzaMin2);
+      const fattoreSfumatura = Math.max(0, Math.min(1, 1 - (distanzaMin / SOGLIA_COPERTURA_PX - 0.6) / 0.4));
+      const alpha = Math.round(255 * 0.42 * fattoreSfumatura);
       for (let py = riga * cellPx; py < Math.min((riga + 1) * cellPx, canvasCampo.height); py++) {
         for (let px = col * cellPx; px < Math.min((col + 1) * cellPx, canvasCampo.width); px++) {
           const off = (py * canvasCampo.width + px) * 4;
@@ -737,7 +726,7 @@ function calcolaCampo() {
     }
   }
 
-  campoVettoriale = { cols, rows, cellPx, vx, vy, valore, larghezza: canvasCampo.width, altezza: canvasCampo.height };
+  campoVettoriale = { cols, rows, cellPx, vx, vy, valore, copertura, larghezza: canvasCampo.width, altezza: canvasCampo.height };
 
   // Disegno il colore su un canvas offscreen a bassa risoluzione, poi lo
   // scalo con smoothing sul canvas visibile — è quello che dà l'effetto
@@ -776,6 +765,7 @@ function campionaVettore(x, y) {
   const riga = Math.floor(y / campoVettoriale.cellPx);
   if (col < 0 || col >= campoVettoriale.cols || riga < 0 || riga >= campoVettoriale.rows) return null;
   const idx = riga * campoVettoriale.cols + col;
+  if (!campoVettoriale.copertura[idx]) return null; // fuori dalla zona coperta da punti reali vicini
   return { vx: campoVettoriale.vx[idx], vy: campoVettoriale.vy[idx], valore: campoVettoriale.valore[idx] };
 }
 
