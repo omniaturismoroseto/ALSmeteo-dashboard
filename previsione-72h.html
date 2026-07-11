@@ -139,7 +139,7 @@
 
   .tabella-oraria-contenitore { max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
   .riga-tabella-oraria {
-    display: grid; grid-template-columns: 1.3fr 1fr 0.9fr 1fr 0.8fr 0.8fr;
+    display: grid; grid-template-columns: 1.1fr 1.7fr 0.8fr 1fr 0.7fr 0.7fr;
     gap: 0.4rem; padding: 0.5rem 0.7rem; font-size: 0.76rem; align-items: center;
     border-bottom: 1px solid var(--line);
   }
@@ -151,12 +151,19 @@
   .riga-oraria-dato { cursor: pointer; background: var(--bg-panel); }
   .riga-oraria-dato:active { background: var(--bg-panel-raised); }
   .riga-oraria-dato.riga-attiva { background: var(--brass-dim); }
-  .riga-oraria-dato .cella-vento { display: flex; align-items: center; gap: 0.3rem; }
+  .riga-oraria-dato .cella-vento { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+  .riga-oraria-dato .riga-vento-principale { display: flex; align-items: center; gap: 0.3rem; }
   .riga-oraria-dato .freccia-vento-tabella { display: inline-block; font-size: 0.85rem; }
+  .riga-oraria-dato .nome-vento-riga { font-size: 0.66rem; color: var(--ink-faint); white-space: nowrap; }
   .riga-oraria-dato .giorno-riga { color: var(--ink-faint); font-size: 0.66rem; display: block; }
   .valore-severo-verde { color: var(--flag-verde); }
   .valore-severo-giallo { color: var(--flag-giallo); }
   .valore-severo-rosso { color: var(--flag-rosso); font-weight: 600; }
+
+  @media (max-width: 560px) {
+    .riga-tabella-oraria { grid-template-columns: 1fr 1.5fr 0.7fr; }
+    .riga-tabella-oraria > span:nth-child(4), .riga-tabella-oraria > span:nth-child(5), .riga-tabella-oraria > span:nth-child(6) { display: none; }
+  }
 
   .leaflet-popup-content-wrapper { background: var(--bg-panel-raised); color: var(--ink); border-radius: 10px; }
   .leaflet-popup-tip { background: var(--bg-panel-raised); }
@@ -957,6 +964,18 @@ function formattaEtichettaRigaOraria(iso) {
   return { giornoTesto, ora };
 }
 
+let indiceInizioTabella = 0; // fissato all'avvio: la tabella oraria parte da qui, non mostra ore già passate
+
+const PUNTI_BUSSOLA_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
+const NOMI_VENTO_8 = ["Tramontana", "Grecale", "Levante", "Scirocco", "Ostro", "Libeccio", "Ponente", "Maestrale"]; // N, NE, E, SE, S, SO, O, NO — la classica rosa dei venti adriatica
+
+function nomeVento(direzioneGradi) {
+  if (direzioneGradi === null || direzioneGradi === undefined) return "";
+  const puntoBussola = PUNTI_BUSSOLA_16[Math.round(direzioneGradi / 22.5) % 16];
+  const nomeClassico = NOMI_VENTO_8[Math.round(direzioneGradi / 45) % 8];
+  return `${puntoBussola} (${nomeClassico})`;
+}
+
 function popolaTabellaOraria() {
   const punto = puntiCore.find((p) => p.id === "roseto_nord");
   const corpo = document.getElementById("corpo-tabella-oraria");
@@ -964,6 +983,7 @@ function popolaTabellaOraria() {
   corpo.innerHTML = "";
 
   punto.orario.forEach((o, idx) => {
+    if (idx < indiceInizioTabella) return; // niente ore già passate, sono previsioni per il futuro
     const { giornoTesto, ora } = formattaEtichettaRigaOraria(o.ora);
     const mareInfo = classeMareria(o.altezza_onda_m);
     const rotazione = o.direzione_gradi !== null && o.direzione_gradi !== undefined ? o.direzione_gradi + 180 : 0;
@@ -977,7 +997,7 @@ function popolaTabellaOraria() {
     riga.dataset.indice = idx;
     riga.innerHTML = `
       <span><span class="giorno-riga">${giornoTesto}</span>${ora}</span>
-      <span class="cella-vento"><span class="freccia-vento-tabella" style="transform:rotate(${rotazione}deg)">↑</span><span class="${classeVento}">${o.vento_nodi !== null ? o.vento_nodi.toFixed(0) : "--"} kt</span></span>
+      <span class="cella-vento"><span class="riga-vento-principale"><span class="freccia-vento-tabella" style="transform:rotate(${rotazione}deg)">↑</span><span class="${classeVento}">${o.vento_nodi !== null ? o.vento_nodi.toFixed(0) : "--"} kt</span></span><span class="nome-vento-riga">${nomeVento(o.direzione_gradi)}</span></span>
       <span class="${classeRaffica}">${o.raffica_nodi !== null ? o.raffica_nodi.toFixed(0) : "--"} kt</span>
       <span>${mareInfo.testo}${o.altezza_onda_m !== null ? " (" + o.altezza_onda_m.toFixed(1) + "m)" : ""}</span>
       <span class="${classePioggia}">${o.pioggia_perc !== null ? o.pioggia_perc + "%" : "--"}</span>
@@ -1113,6 +1133,7 @@ async function avviaPagina() {
   if (timelineMaster[indiceOra]) {
     frazioneAnimazione = Math.max(0, Math.min(1, (adesso - timelineMaster[indiceOra].getTime()) / (3600 * 1000)));
   }
+  indiceInizioTabella = indiceOra; // la tabella oraria non mostrerà ore precedenti a questa
   slider.value = passoTotaleAttuale();
 
   // IMPORTANTE: i controlli essenziali (slider, play, switch vento/mare) si
