@@ -269,15 +269,8 @@
   </div>
 
   <div class="pannello">
-    <p class="titolo-sezione">Dettaglio nell'ora selezionata</p>
-    <div id="selettore-punti"></div>
-    <div class="griglia-dati" id="griglia-dati"></div>
-    <div class="grafico-contenitore"><canvas id="grafico-72h"></canvas></div>
-    <p class="nota-disclaimer" id="nota-generato">I punti Roseto/Pineto usano il consenso mediano di 5 modelli (ECMWF, GFS, ICON, Météo-France, MET Norway) su 72h. I punti della costa estesa usano un solo modello (best_match) su 72h, pensato per un quadro d'insieme, non per la massima precisione locale — trattali come indicativi.</p>
-  </div>
-
-  <div class="pannello">
     <p class="titolo-sezione">Previsione oraria scritta — Roseto degli Abruzzi</p>
+    <p class="nota-disclaimer" id="nota-generato" style="margin-top:0;margin-bottom:0.6rem;">Consenso mediano di 5 modelli (ECMWF, GFS, ICON, Météo-France, MET Norway) su 72h.</p>
     <div class="tabella-oraria-contenitore" id="tabella-oraria-contenitore">
       <div class="riga-tabella-oraria intestazione-tabella-oraria">
         <span>Ora</span><span>Vento</span><span>Raffiche</span><span>Mare</span><span>Pioggia</span><span>Temp.</span>
@@ -291,8 +284,6 @@
 
 <div id="stato-iniziale" class="stato-caricamento">Accedi per caricare la previsione…</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -346,9 +337,9 @@ let puntiEstesi = [];        // stessa forma, tipo:'esteso', senza altezza_onda_
 let indiceOra = 0;
 let mappa = null;
 let marcatori = {};
-let grafico = null;
-let puntoSelezionatoId = "roseto_nord";
-let timerAnimazione = null;
+let offsetEstesoVento = 0;
+let offsetEstesoMare = 0;
+let frazioneAnimazione = 0; // 0-1: quanto siamo "dentro" all'ora indiceOra verso indiceOra+1 — usato solo durante il play, per interpolare in modo fluido tra un'ora e la successiva
 
 // --- Switch Vento / Mare -----------------------------------------------
 let variabileCampo = "vento"; // "vento" | "mare"
@@ -556,9 +547,29 @@ async function caricaPrevisione() {
 
   timelineMaster = puntiCore[0].orario.map((o) => new Date(o.ora));
 
+  // I punti estesi arrivano da una Cloud Function separata: normalmente
+  // condividono lo stesso grigliato orario (mezzanotte + N ore, timezone
+  // Europe/Rome) dei punti core, ma se una delle due fonti fosse su un
+  // giorno diverso (es. il core è caduto sul fallback "ieri" perché oggi
+  // non c'era ancora una rilevazione) gli indici si sfaserebbero. Calcolo
+  // l'offset una volta sola confrontando il primo orario disponibile,
+  // invece di dare per scontato che l'indice i degli uni combaci con
+  // l'indice i degli altri.
+  offsetEstesoVento = calcolaOffsetIndice(puntiEstesi[0]?.orario, timelineMaster[0]);
+
   statoIniziale.style.display = "none";
   document.getElementById("contenuto-principale").style.display = "block";
   return true;
+}
+
+function calcolaOffsetIndice(arr, riferimento) {
+  if (!arr || !arr.length || !riferimento) return 0;
+  let migliore = 0, distanzaMin = Infinity;
+  arr.forEach((o, i) => {
+    const d = Math.abs(new Date(o.ora).getTime() - riferimento.getTime());
+    if (d < distanzaMin) { distanzaMin = d; migliore = i; }
+  });
+  return migliore;
 }
 
 // --- Mappa ------------------------------------------------------------------
@@ -582,6 +593,15 @@ function inizializzaMappa() {
   ctxParticelle = canvasParticelle.getContext("2d");
   ridimensionaCanvasCampo();
 
+  // Pulisco subito i canvas quando INIZIA uno zoom/spostamento: Leaflet
+  // trasla il pannello che li contiene insieme alle tile, quindi qualsiasi
+  // pixel già disegnato (in particolare le scie delle particelle) si
+  // sposterebbe con lui, apparendo come "cerchi"/macchie fuori posto finché
+  // non arriva il prossimo ricalcolo. Pulire subito evita che si vedano.
+  mappa.on("zoomstart movestart", () => {
+    if (ctxCampo && canvasCampo) ctxCampo.clearRect(0, 0, canvasCampo.width, canvasCampo.height);
+    if (ctxParticelle && canvasParticelle) ctxParticelle.clearRect(0, 0, canvasParticelle.width, canvasParticelle.height);
+  });
   mappa.on("moveend zoomend", () => { ridimensionaCanvasCampo(); ricalcolaCampoCompleto(); });
   window.addEventListener("resize", () => { ridimensionaCanvasCampo(); ricalcolaCampoCompleto(); });
 
@@ -664,49 +684,61 @@ function coloreDaValore(valore, tappe) {
 // (direzione+velocità) — sono due grandezze fisiche diverse, non la stessa
 // cosa vista in due modi, coerente con come vista-adriatico.html mostra già
 // vento e corrente come due strati separati.
-function puntiPerCampo(istante) {
+function estraiVettoreVento(o) {
+  if (!o || o.vento_nodi === null || o.vento_nodi === undefined) return null;
+  const direzioneRad = ((o.direzione_gradi ?? 0) + 180) * Math.PI / 180; // dove il vento VA, non da dove viene
+  return { vx: Math.sin(direzioneRad) * o.vento_nodi, vy: -Math.cos(direzioneRad) * o.vento_nodi, valore: o.vento_nodi };
+}
+
+function estraiVettoreMare(o) {
+  if (!o || o.altezza_onda_m === null || o.altezza_onda_m === undefined) return null;
+  const correnteNodi = o.corrente_nodi ?? 0;
+  const direzioneRad = ((o.corrente_direzione_gradi ?? 0) + 180) * Math.PI / 180;
+  return { vx: Math.sin(direzioneRad) * correnteNodi, vy: -Math.cos(direzioneRad) * correnteNodi, valore: o.altezza_onda_m };
+}
+
+// Interpola tra arr[idx] e arr[idx+1] in base a "frazione" (0 = arr[idx]
+// esatto, 1 = arr[idx+1] esatto). Interpolare vx/vy (componenti cartesiane)
+// invece della direzione in gradi evita completamente il problema del
+// wrap-around (350°→10° che a metà strada darebbe erroneamente 180°).
+function interpolaVoce(arr, idx, estrattore, frazione) {
+  if (!arr || !arr[idx]) return null;
+  const a = estrattore(arr[idx]);
+  if (!a) return null;
+  if (!frazione || !arr[idx + 1]) return a;
+  const b = estrattore(arr[idx + 1]);
+  if (!b) return a;
+  return {
+    vx: a.vx + (b.vx - a.vx) * frazione,
+    vy: a.vy + (b.vy - a.vy) * frazione,
+    valore: a.valore + (b.valore - a.valore) * frazione,
+  };
+}
+
+function puntiPerCampo(indiceBase, frazione) {
   const risultato = [];
 
   if (variabileCampo === "vento") {
-    for (const p of tuttiIPunti()) {
-      const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
-      if (!oraDati || oraDati.vento_nodi === null || oraDati.vento_nodi === undefined) continue;
-      const direzioneRad = ((oraDati.direzione_gradi ?? 0) + 180) * Math.PI / 180; // dove il vento VA, non da dove viene
-      risultato.push({
-        lat: p.lat, lon: p.lon,
-        vx: Math.sin(direzioneRad) * oraDati.vento_nodi,
-        vy: -Math.cos(direzioneRad) * oraDati.vento_nodi,
-        valoreColore: oraDati.vento_nodi,
-      });
+    for (const p of puntiCore) {
+      const v = interpolaVoce(p.orario, indiceBase, estraiVettoreVento, frazione);
+      if (v) risultato.push({ lat: p.lat, lon: p.lon, vx: v.vx, vy: v.vy, valoreColore: v.valore });
+    }
+    for (const p of puntiEstesi) {
+      const v = interpolaVoce(p.orario, indiceBase + offsetEstesoVento, estraiVettoreVento, frazione);
+      if (v) risultato.push({ lat: p.lat, lon: p.lon, vx: v.vx, vy: v.vy, valoreColore: v.valore });
     }
     return risultato;
   }
 
   // variabileCampo === "mare"
   for (const p of puntiCore) {
-    const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
-    if (!oraDati || oraDati.altezza_onda_m === null || oraDati.altezza_onda_m === undefined) continue;
-    const correnteNodi = oraDati.corrente_nodi ?? 0;
-    const direzioneRad = ((oraDati.corrente_direzione_gradi ?? 0) + 180) * Math.PI / 180;
-    risultato.push({
-      lat: p.lat, lon: p.lon,
-      vx: Math.sin(direzioneRad) * correnteNodi,
-      vy: -Math.cos(direzioneRad) * correnteNodi,
-      valoreColore: oraDati.altezza_onda_m,
-    });
+    const v = interpolaVoce(p.orario, indiceBase, estraiVettoreMare, frazione);
+    if (v) risultato.push({ lat: p.lat, lon: p.lon, vx: v.vx, vy: v.vy, valoreColore: v.valore });
   }
   for (const p of puntiEstesi) {
     if (!p.mareOrario) continue;
-    const oraDati = trovaVoceVicina(p.mareOrario, istante, 45 * 60 * 1000);
-    if (!oraDati || oraDati.altezza_onda_m === null || oraDati.altezza_onda_m === undefined) continue;
-    const correnteNodi = oraDati.corrente_nodi ?? 0;
-    const direzioneRad = ((oraDati.corrente_direzione_gradi ?? 0) + 180) * Math.PI / 180;
-    risultato.push({
-      lat: p.lat, lon: p.lon,
-      vx: Math.sin(direzioneRad) * correnteNodi,
-      vy: -Math.cos(direzioneRad) * correnteNodi,
-      valoreColore: oraDati.altezza_onda_m,
-    });
+    const v = interpolaVoce(p.mareOrario, indiceBase + offsetEstesoMare, estraiVettoreMare, frazione);
+    if (v) risultato.push({ lat: p.lat, lon: p.lon, vx: v.vx, vy: v.vy, valoreColore: v.valore });
   }
   return risultato;
 }
@@ -716,7 +748,7 @@ function puntiPerCampo(istante) {
 // lavorare in pixel evita conversioni geografiche ripetute per ogni cella.
 function calcolaCampo() {
   if (!mappa || !canvasCampo || canvasCampo.width === 0 || canvasCampo.height === 0) return;
-  const puntiDati = puntiPerCampo(timelineMaster[indiceOra]);
+  const puntiDati = puntiPerCampo(indiceOra, frazioneAnimazione);
   if (!puntiDati.length) { campoVettoriale = null; ctxCampo.clearRect(0, 0, canvasCampo.width, canvasCampo.height); return; }
 
   const puntiPx = puntiDati.map((p) => {
@@ -894,171 +926,6 @@ function avviaAnimazioneParticelle() {
   requestAnimationFrame(passo);
 }
 
-
-function popolaSelettorePunti() {
-  const contenitore = document.getElementById("selettore-punti");
-  contenitore.innerHTML = "";
-
-  const gruppoCore = document.createElement("div");
-  gruppoCore.className = "gruppo-selettore";
-  gruppoCore.innerHTML = `<span class="etichetta-gruppo">Roseto / Pineto (dettaglio)</span>`;
-  const rigaCore = document.createElement("div");
-  rigaCore.className = "selettore-punti";
-  puntiCore.forEach((p) => rigaCore.appendChild(creaChip(p)));
-  gruppoCore.appendChild(rigaCore);
-  contenitore.appendChild(gruppoCore);
-
-  if (puntiEstesi.length) {
-    const gruppoEsteso = document.createElement("div");
-    gruppoEsteso.className = "gruppo-selettore";
-    gruppoEsteso.innerHTML = `<span class="etichetta-gruppo">Costa estesa</span>`;
-    const rigaEsteso = document.createElement("div");
-    rigaEsteso.className = "selettore-punti";
-    puntiEstesi.forEach((p) => rigaEsteso.appendChild(creaChip(p)));
-    gruppoEsteso.appendChild(rigaEsteso);
-    contenitore.appendChild(gruppoEsteso);
-  }
-}
-
-function creaChip(p) {
-  const chip = document.createElement("button");
-  chip.className = "chip-punto" + (p.id === puntoSelezionatoId ? " attivo" : "");
-  chip.textContent = p.nome;
-  chip.addEventListener("click", () => selezionaPunto(p.id));
-  return chip;
-}
-
-function selezionaPunto(id) {
-  puntoSelezionatoId = id;
-  popolaSelettorePunti();
-  aggiornaGrigliaDati();
-  disegnaGrafico();
-}
-
-function trovaPuntoSelezionato() {
-  return tuttiIPunti().find((p) => p.id === puntoSelezionatoId) || puntiCore[0];
-}
-
-function aggiornaGrigliaDati() {
-  const punto = trovaPuntoSelezionato();
-  const griglia = document.getElementById("griglia-dati");
-  if (!punto) { griglia.innerHTML = ""; return; }
-  const istante = timelineMaster[indiceOra];
-  const oraDati = trovaVoceVicina(punto.orario, istante, punto.tipo === "core" ? 45 * 60 * 1000 : TOLLERANZA_MATCH_MS);
-
-  if (!oraDati) {
-    griglia.innerHTML = `<div class="cella-dato"><div class="etichetta">Stato</div><div class="valore">Nessun dato per quest'ora</div></div>`;
-    return;
-  }
-
-  function classeVento(v) {
-    if (v === null || v === undefined) return "";
-    if (v >= SOGLIA_VENTO_ROSSO) return "rosso";
-    if (v >= SOGLIA_VENTO_GIALLO) return "giallo";
-    return "verde";
-  }
-  function classeRaffica(r) {
-    if (r === null || r === undefined) return "";
-    if (r >= SOGLIA_RAFFICA_ROSSO) return "rosso";
-    if (r >= SOGLIA_RAFFICA_GIALLO) return "giallo";
-    return "verde";
-  }
-
-  let celleExtra = "";
-  if (punto.tipo === "core") {
-    const mareInfo = classeMareria(oraDati.altezza_onda_m);
-    function classePioggia(pp) {
-      if (pp === null || pp === undefined) return "";
-      return pp >= SOGLIA_PIOGGIA_PERC ? "rosso" : pp >= 30 ? "giallo" : "verde";
-    }
-    function classeUV(uv) {
-      if (uv === null || uv === undefined) return "";
-      return uv >= 8 ? "rosso" : uv >= 6 ? "giallo" : "verde";
-    }
-    celleExtra = `
-      <div class="cella-dato"><div class="etichetta">Mare</div><div class="valore ${mareInfo.classe}">${mareInfo.testo}</div></div>
-      <div class="cella-dato"><div class="etichetta">Pioggia</div><div class="valore ${classePioggia(oraDati.pioggia_perc)}">${oraDati.pioggia_perc !== null ? oraDati.pioggia_perc + "%" : "--"}</div></div>
-      <div class="cella-dato"><div class="etichetta">Temperatura</div><div class="valore">${oraDati.temperatura_c !== null ? oraDati.temperatura_c.toFixed(0) + "°C" : "--"}</div></div>
-      <div class="cella-dato"><div class="etichetta">Indice UV</div><div class="valore ${classeUV(oraDati.indice_uv)}">${oraDati.indice_uv !== null ? oraDati.indice_uv.toFixed(1) : "--"}</div></div>
-      <div class="cella-dato"><div class="etichetta">Temp. mare</div><div class="valore">${oraDati.temperatura_mare_c !== null ? oraDati.temperatura_mare_c.toFixed(1) + "°C" : "--"}</div></div>
-      <div class="cella-dato"><div class="etichetta">Periodo onda</div><div class="valore">${oraDati.periodo_onda_s !== null ? oraDati.periodo_onda_s.toFixed(1) + " s" : "--"}</div></div>
-      <div class="cella-dato"><div class="etichetta">Corrente</div><div class="valore">${oraDati.corrente_nodi !== null ? oraDati.corrente_nodi.toFixed(1) + " kt" : "--"}</div></div>
-      <div class="cella-dato"><div class="etichetta">Marea</div><div class="valore">${oraDati.marea_m !== null ? oraDati.marea_m.toFixed(2) + " m" : "--"}</div></div>
-    `;
-  } else {
-    celleExtra = `
-      <div class="cella-dato"><div class="etichetta">Pioggia</div><div class="valore">${oraDati.pioggia_mm !== null ? oraDati.pioggia_mm.toFixed(1) + " mm/h" : "--"}</div></div>
-    `;
-  }
-
-  griglia.innerHTML = `
-    <div class="cella-dato"><div class="etichetta">Vento</div><div class="valore ${classeVento(oraDati.vento_nodi)}">${oraDati.vento_nodi !== null ? oraDati.vento_nodi.toFixed(0) : "--"} kt</div></div>
-    <div class="cella-dato"><div class="etichetta">Raffiche</div><div class="valore ${classeRaffica(oraDati.raffica_nodi)}">${oraDati.raffica_nodi !== null ? oraDati.raffica_nodi.toFixed(0) : "--"} kt</div></div>
-    ${celleExtra}
-  `;
-}
-
-// --- Grafico con indicatore sincronizzato ------------------------------------
-function disegnaGrafico() {
-  const punto = trovaPuntoSelezionato();
-  if (!punto) return;
-  const canvas = document.getElementById("grafico-72h");
-  const etichette = punto.orario.map((o) => new Date(o.ora));
-  const ventoDati = punto.orario.map((o) => o.vento_nodi);
-  const secondaSerie = punto.tipo === "core" ? punto.orario.map((o) => o.altezza_onda_m) : punto.orario.map((o) => o.raffica_nodi);
-  const etichettaSeconda = punto.tipo === "core" ? "Onda (m)" : "Raffiche (nodi)";
-
-  if (grafico) grafico.destroy();
-  grafico = new Chart(canvas, {
-    type: "line",
-    data: {
-      labels: etichette,
-      datasets: [
-        { label: "Vento (nodi)", data: ventoDati, borderColor: "#7FA0A8", backgroundColor: "rgba(127,160,168,0.12)", fill: true, tension: 0.3, pointRadius: 0, yAxisID: "y" },
-        { label: etichettaSeconda, data: secondaSerie, borderColor: "#C99B4A", borderDash: [4, 3], fill: false, tension: 0.3, pointRadius: 0, yAxisID: "y1" },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      onClick: (evt, elementi, chart) => {
-        const trovati = chart.getElementsAtEventForMode(evt, "index", { intersect: false }, true);
-        if (trovati.length) {
-          const nuovoIstante = etichette[trovati[0].index];
-          const idx = timelineMaster.findIndex((d) => Math.abs(d - nuovoIstante) < 30 * 60 * 1000);
-          indiceOra = idx !== -1 ? idx : indiceOra;
-          document.getElementById("slider-tempo").value = indiceOra;
-          aggiornaTutto();
-        }
-      },
-      plugins: {
-        legend: { labels: { color: "#7FA0A8", font: { size: 10 } } },
-        tooltip: { callbacks: { title: (items) => new Date(items[0].parsed.x).toLocaleString("it-IT", { timeZone: "Europe/Rome", weekday: "short", hour: "2-digit", minute: "2-digit" }) } },
-      },
-      scales: {
-        x: { type: "time", time: { unit: "hour" }, ticks: { color: "#4C6870", maxTicksLimit: 8 }, grid: { color: "rgba(35,70,83,0.4)" } },
-        y: { position: "left", ticks: { color: "#7FA0A8" }, grid: { color: "rgba(35,70,83,0.4)" }, title: { display: true, text: "nodi", color: "#7FA0A8" } },
-        y1: { position: "right", ticks: { color: "#C99B4A" }, grid: { display: false }, title: { display: true, text: punto.tipo === "core" ? "metri" : "nodi", color: "#C99B4A" } },
-      },
-    },
-    plugins: [{
-      id: "lineaTempo",
-      afterDraw: (chart) => {
-        const istante = timelineMaster[indiceOra];
-        const x = chart.scales.x.getPixelForValue(istante);
-        const { top, bottom } = chart.chartArea;
-        const ctx = chart.ctx;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(x, top); ctx.lineTo(x, bottom);
-        ctx.lineWidth = 2; ctx.strokeStyle = "#E8F0EE";
-        ctx.stroke();
-        ctx.restore();
-      },
-    }],
-  });
-}
-
 // --- Pillole giorno -----------------------------------------------------------
 // --- Tabella oraria scritta per Roseto ---------------------------------------
 // Usa roseto_nord come punto rappresentativo — è anche puntiCore[0], quindi
@@ -1106,6 +973,7 @@ function popolaTabellaOraria() {
     `;
     riga.addEventListener("click", () => {
       indiceOra = idx;
+      frazioneAnimazione = 0;
       document.getElementById("slider-tempo").value = idx;
       aggiornaTutto();
     });
@@ -1139,6 +1007,7 @@ function popolaPilloleGiorno() {
     pillola.textContent = testo;
     pillola.addEventListener("click", () => {
       indiceOra = idx;
+      frazioneAnimazione = 0;
       document.getElementById("slider-tempo").value = idx;
       aggiornaTutto();
     });
@@ -1157,27 +1026,56 @@ function aggiornaTutto() {
     console.error("Errore formattazione orario:", err, istante);
     document.getElementById("etichetta-orario").textContent = istante.toString();
   }
-  try { aggiornaGrigliaDati(); } catch (err) { console.error("Errore griglia dati:", err); }
   try { aggiornaEvidenziazioneTabellaOraria(); } catch (err) { console.error("Errore evidenziazione tabella:", err); }
   try { ricalcolaCampoDati(); } catch (err) { console.error("Errore ricalcolo campo:", err); }
-  if (grafico) { try { grafico.update("none"); } catch (err) { console.error("Errore aggiornamento grafico:", err); } }
 }
+
+// Play fluido: invece di saltare un'ora intera ogni 400ms (a scatti), avanza
+// in continuo con requestAnimationFrame e interpola il campo tra un'ora e la
+// successiva tramite "frazioneAnimazione". Il ricalcolo del campo (pesante,
+// l'interpolazione IDW su tutti i punti) resta comunque limitato a ~12
+// volte al secondo per non scaldare troppo il telefono — le particelle
+// restano fluide a 30fps perché seguono il campo già calcolato, non lo
+// ricalcolano ad ogni frame.
+let animazionePlayAttiva = false;
+let ultimoTimestampPlay = 0;
+let ultimoAggiornamentoPlayMs = 0;
+const ORE_PER_SECONDO_PLAY = 3; // l'intero arco di 72h scorre in circa 24 secondi
 
 function avviaAnimazione() {
   const btn = document.getElementById("btn-play");
-  if (timerAnimazione) {
-    clearInterval(timerAnimazione);
-    timerAnimazione = null;
+  if (animazionePlayAttiva) {
+    animazionePlayAttiva = false;
     btn.textContent = "▶";
+    frazioneAnimazione = 0;
+    document.getElementById("slider-tempo").value = indiceOra;
+    aggiornaTutto(); // allinea il campo esattamente all'ora intera mostrata, senza restare "a metà"
     return;
   }
+  animazionePlayAttiva = true;
   btn.textContent = "⏸";
-  const slider = document.getElementById("slider-tempo");
-  timerAnimazione = setInterval(() => {
+  ultimoTimestampPlay = performance.now();
+  requestAnimationFrame(passoPlay);
+}
+
+function passoPlay(ts) {
+  if (!animazionePlayAttiva) return;
+  const deltaSecondi = Math.min((ts - ultimoTimestampPlay) / 1000, 0.25); // clamp: evita salti enormi se il tab è stato in background
+  ultimoTimestampPlay = ts;
+
+  frazioneAnimazione += deltaSecondi * ORE_PER_SECONDO_PLAY;
+  while (frazioneAnimazione >= 1) {
+    frazioneAnimazione -= 1;
     indiceOra = (indiceOra + 1) % timelineMaster.length;
-    slider.value = indiceOra;
+  }
+
+  if (ts - ultimoAggiornamentoPlayMs >= 80) { // ~12 volte al secondo per il ricalcolo pesante
+    ultimoAggiornamentoPlayMs = ts;
+    document.getElementById("slider-tempo").value = indiceOra;
     aggiornaTutto();
-  }, 400);
+  }
+
+  requestAnimationFrame(passoPlay);
 }
 
 async function avviaPagina() {
@@ -1205,6 +1103,7 @@ async function avviaPagina() {
   // MAI collegati, restando come "morti" senza nessun errore visibile.
   slider.addEventListener("input", () => {
     indiceOra = parseInt(slider.value, 10);
+    frazioneAnimazione = 0;
     aggiornaTutto();
   });
   document.getElementById("btn-play").addEventListener("click", avviaAnimazione);
@@ -1215,9 +1114,7 @@ async function avviaPagina() {
   // Ognuno di questi è isolato: se uno fallisce, gli altri (e i controlli
   // già attaccati sopra) continuano comunque a funzionare.
   try { inizializzaMappa(); } catch (err) { console.error("Errore inizializzazione mappa/campo:", err); }
-  try { popolaSelettorePunti(); } catch (err) { console.error("Errore selettore punti:", err); }
   try { popolaPilloleGiorno(); } catch (err) { console.error("Errore pillole giorno:", err); }
-  try { disegnaGrafico(); } catch (err) { console.error("Errore grafico:", err); }
   try { popolaTabellaOraria(); } catch (err) { console.error("Errore tabella oraria:", err); }
   try { aggiornaTutto(); } catch (err) { console.error("Errore aggiornamento iniziale:", err); }
 }
@@ -1252,6 +1149,7 @@ async function attivaVariabile(nuovaVariabile) {
       await caricaDatiMareEstesi((fatti, totali) => {
         percentualeEl.textContent = Math.round((fatti / totali) * 100) + "%";
       });
+      offsetEstesoMare = calcolaOffsetIndice(puntiEstesi.find((p) => p.mareOrario && p.mareOrario.length)?.mareOrario, timelineMaster[0]);
     } catch (err) {
       console.error("Errore caricamento dati mare estesi:", err);
     }
