@@ -115,6 +115,18 @@
   .barra-legenda-campo { flex: 1; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #3d4ea1, #2f80b0, #2fae7a, #8ec73f, #e8c93c, #e2723a, #b93c96); }
   .barra-legenda-campo-etichette { display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--ink-faint); margin-top: 0.15rem; }
 
+  .switch-variabile { display: flex; gap: 0.4rem; background: var(--bg-panel-raised); border-radius: 20px; padding: 0.25rem; }
+  .chip-variabile {
+    background: transparent; border: none; color: var(--ink-muted); font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem; padding: 0.4rem 0.8rem; border-radius: 16px; cursor: pointer; white-space: nowrap;
+  }
+  .chip-variabile.attiva { background: var(--brass); color: var(--bg-abyss); font-weight: 600; }
+
+  .caricamento-mare {
+    text-align: center; font-size: 0.75rem; color: var(--brass); padding: 0.6rem;
+    background: var(--bg-panel-raised); border-radius: 8px; margin-top: 0.6rem;
+  }
+
   .leaflet-popup-content-wrapper { background: var(--bg-panel-raised); color: var(--ink); border-radius: 10px; }
   .leaflet-popup-tip { background: var(--bg-panel-raised); }
   .popup-punto h3 { margin: 0 0 0.4rem; font-size: 0.85rem; color: var(--brass); }
@@ -147,6 +159,10 @@
   .chip-punto.attivo { background: var(--brass-dim); color: var(--ink); border-color: var(--brass); }
 
   .nota-disclaimer { font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.9rem; line-height: 1.5; }
+
+  .windy-contenitore { position: relative; width: 100%; padding-bottom: 62%; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+  .windy-contenitore iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+  @media (max-width: 560px) { .windy-contenitore { padding-bottom: 90%; } }
 
   .stato-caricamento, .stato-errore { text-align: center; padding: 3rem 1rem; color: var(--ink-muted); font-size: 0.85rem; }
   .stato-errore { color: var(--flag-rosso); }
@@ -203,20 +219,25 @@
     <div class="riga-timeline">
       <button class="bottone-play" id="btn-play" aria-label="Avvia animazione">▶</button>
       <div class="etichetta-orario mono" id="etichetta-orario">—</div>
+      <div class="switch-variabile" id="switch-variabile">
+        <button class="chip-variabile attiva" id="btn-variabile-vento" type="button">💨 Vento</button>
+        <button class="chip-variabile" id="btn-variabile-mare" type="button">🌊 Mare</button>
+      </div>
       <div class="pillole-giorno" id="pillole-giorno"></div>
     </div>
     <input type="range" id="slider-tempo" min="0" max="0" value="0" step="1">
     <div id="mappa-previsione"></div>
+    <div id="caricamento-mare" class="caricamento-mare" style="display:none;">Carico i dati mare della costa estesa… <span id="caricamento-mare-percentuale">0%</span></div>
     <div class="legenda-campo">
-      <span class="mono">kt</span>
+      <span class="mono" id="unita-legenda-campo">kt</span>
       <div style="flex:1;">
-        <div class="barra-legenda-campo"></div>
-        <div class="barra-legenda-campo-etichette"><span>0</span><span>5</span><span>10</span><span>20</span><span>30</span><span>40</span><span>60+</span></div>
+        <div class="barra-legenda-campo" id="barra-legenda-campo"></div>
+        <div class="barra-legenda-campo-etichette" id="barra-legenda-campo-etichette"><span>0</span><span>5</span><span>10</span><span>20</span><span>30</span><span>40</span><span>60+</span></div>
       </div>
     </div>
-    <p class="nota-disclaimer" style="margin-top:0.3rem;">Campo interpolato tra i 32 punti reali (zona Abruzzo) — non un dato di modello a griglia: è una stima smussata, più affidabile vicino alla costa che al largo o ai bordi della mappa.</p>
+    <p class="nota-disclaimer" id="nota-campo" style="margin-top:0.3rem;">Campo interpolato tra i punti reali (zona Abruzzo) — non un dato di modello a griglia: è una stima smussata, più affidabile vicino alla costa che al largo o ai bordi della mappa.</p>
     <div class="legenda">
-      <div>Il colore della mappa segue la scala nodi qui sopra · seleziona un punto qui sotto per il dettaglio numerico e il grafico</div>
+      <div id="nota-legenda-generica">Il colore della mappa segue la scala qui sopra · seleziona un punto qui sotto per il dettaglio numerico e il grafico</div>
     </div>
   </div>
 
@@ -226,6 +247,22 @@
     <div class="griglia-dati" id="griglia-dati"></div>
     <div class="grafico-contenitore"><canvas id="grafico-72h"></canvas></div>
     <p class="nota-disclaimer" id="nota-generato">I punti Roseto/Pineto usano il consenso mediano di 5 modelli (ECMWF, GFS, ICON, Météo-France, MET Norway) su 72h. I punti della costa estesa usano un solo modello (best_match) su 72h, pensato per un quadro d'insieme, non per la massima precisione locale — trattali come indicativi.</p>
+  <div class="pannello">
+    <p class="titolo-sezione">Confronto — Windy (dati di modello reali, non interpolati)</p>
+    <div class="windy-contenitore">
+      <iframe
+        title="Windy"
+        src="https://embed.windy.com/embed2.html?lat=42.65&lon=14.10&detailLat=42.65&detailLon=14.10&zoom=9&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=true&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"
+        frameborder="0"
+        loading="lazy"
+      ></iframe>
+    </div>
+    <p class="nota-disclaimer">
+      Widget gratuito di Windy.com (nessun cookie/tracciamento). Nota d'uso onesta: Windy riserva ufficialmente l'embed gratuito a "uso media" nei suoi termini — per un utilizzo pienamente conforme in un'app professionale servirebbe la loro API a pagamento (api.windy.com). In pratica l'iframe libero viene usato ovunque senza controlli, ma è giusto che tu lo sappia.
+      Per Windfinder (spot "Roseto degli Abruzzi" già censito da loro) genera il tuo widget personalizzato su
+      <a class="link-plancia" href="https://www.windfinder.com/widget/configurator/roseto_degli_abruzzi" target="_blank" rel="noopener">windfinder.com/widget/configurator/roseto_degli_abruzzi</a>
+      — è gratuito per siti web (non per app), max 3 widget per pagina. Copio qui io il codice se mi incolli quello che ti generano.
+    </p>
   </div>
 
 </main>
@@ -280,7 +317,7 @@ let canvasCampo = null;       // colore statico, ridisegnato solo al cambio ora/
 let ctxCampo = null;
 let canvasParticelle = null;  // scia animata, ridisegnata ogni frame
 let ctxParticelle = null;
-let campoVettoriale = null;   // { cols, rows, cellPx, dati: Float32Array[vx,vy,speedKt] per cella, origineX, origineY }
+let campoVettoriale = null;   // { cols, rows, cellPx, vx, vy, valore: Float32Array per cella (nodi se vento, metri se mare) }
 let particelle = [];
 const NUM_PARTICELLE = 550;
 let animazioneCampoAttiva = false;
@@ -296,6 +333,12 @@ let marcatori = {};
 let grafico = null;
 let puntoSelezionatoId = "roseto_nord";
 let timerAnimazione = null;
+
+// --- Switch Vento / Mare -----------------------------------------------
+let variabileCampo = "vento"; // "vento" | "mare"
+let mareEstesiCaricati = false;
+let caricandoMareEstesi = false;
+const KMH_IN_NODI = 0.539957; // Open-Meteo marine restituisce la corrente in km/h
 
 function tuttiIPunti() { return [...puntiCore, ...puntiEstesi]; }
 
@@ -369,9 +412,11 @@ function normalizzaCore(rilevazione) {
           temperatura_c: o.temperatura_media ?? null,
           indice_uv: o.indice_uv ?? null,
           altezza_onda_m: mareVicino ? mareVicino.altezza_onda_m : null,
+          direzione_onda_gradi: mareVicino ? mareVicino.direzione_onda_gradi : null,
           periodo_onda_s: mareVicino ? mareVicino.periodo_onda_s : null,
           temperatura_mare_c: mareVicino ? mareVicino.temperatura_mare_c : null,
           corrente_nodi: mareVicino ? mareVicino.corrente_nodi : null,
+          corrente_direzione_gradi: mareVicino ? mareVicino.corrente_direzione_gradi : null,
           marea_m: mareVicino ? mareVicino.marea_m : null,
         };
       }),
@@ -399,7 +444,65 @@ function normalizzaEsteso(doc) {
   }));
 }
 
-// --- Caricamento dati ------------------------------------------------------
+// --- Mare per i punti estesi: caricato al volo dal browser, non da Firestore
+// (per non far crescere il documento della griglia estesa oltre il limite
+// di 1MB) — direttamente da Open-Meteo Marine, la stessa fonte che usa già
+// il backend per i 4 punti core, stessa unità (nodi) e stesso orizzonte 72h.
+function costruisciUrlMarineClient(punto) {
+  const params = new URLSearchParams({
+    latitude: punto.lat,
+    longitude: punto.lon,
+    hourly: "wave_height,wave_direction,ocean_current_velocity,ocean_current_direction",
+    timezone: "Europe/Rome",
+    forecast_days: "3",
+  });
+  return `https://marine-api.open-meteo.com/v1/marine?${params.toString()}`;
+}
+
+function analizzaMareClient(hourly) {
+  if (!hourly || !hourly.time) return [];
+  return hourly.time.map((ora, i) => ({
+    ora,
+    altezza_onda_m: hourly.wave_height ? hourly.wave_height[i] ?? null : null,
+    direzione_onda_gradi: hourly.wave_direction ? hourly.wave_direction[i] ?? null : null,
+    corrente_nodi:
+      hourly.ocean_current_velocity && hourly.ocean_current_velocity[i] !== null && hourly.ocean_current_velocity[i] !== undefined
+        ? hourly.ocean_current_velocity[i] * KMH_IN_NODI
+        : null,
+    corrente_direzione_gradi: hourly.ocean_current_direction ? hourly.ocean_current_direction[i] ?? null : null,
+  }));
+}
+
+// Carica in piccoli lotti concorrenti (non tutti e 38 insieme: sarebbe un
+// picco di richieste dal singolo browser, meglio scaglionare un po').
+async function caricaDatiMareEstesi(onProgresso) {
+  if (mareEstesiCaricati || caricandoMareEstesi) return;
+  caricandoMareEstesi = true;
+  const DIMENSIONE_LOTTO = 6;
+  let completati = 0;
+
+  for (let i = 0; i < puntiEstesi.length; i += DIMENSIONE_LOTTO) {
+    const lotto = puntiEstesi.slice(i, i + DIMENSIONE_LOTTO);
+    await Promise.all(lotto.map(async (p) => {
+      try {
+        const risposta = await fetch(costruisciUrlMarineClient(p));
+        if (!risposta.ok) throw new Error(`HTTP ${risposta.status}`);
+        const dati = await risposta.json();
+        p.mareOrario = analizzaMareClient(dati.hourly);
+      } catch (err) {
+        console.warn(`Mare non disponibile per ${p.nome}: ${err.message}`);
+        p.mareOrario = [];
+      }
+      completati++;
+      if (onProgresso) onProgresso(completati, puntiEstesi.length);
+    }));
+  }
+
+  mareEstesiCaricati = true;
+  caricandoMareEstesi = false;
+}
+
+
 async function caricaPrevisione() {
   const statoIniziale = document.getElementById("stato-iniziale");
   statoIniziale.textContent = "Caricamento previsione…";
@@ -483,31 +586,49 @@ function ridimensionaCanvasCampo() {
 // nostri 32 punti reali — non è un grigliato di modello, è una stima
 // smussata tra i punti che abbiamo davvero). -------------------------------
 
-const TAPPE_COLORE_KT = [
-  { kt: 0,  colore: [61, 78, 161] },
-  { kt: 5,  colore: [47, 128, 176] },
-  { kt: 10, colore: [47, 174, 122] },
-  { kt: 20, colore: [142, 199, 63] },
-  { kt: 30, colore: [232, 201, 60] },
-  { kt: 40, colore: [226, 114, 58] },
-  { kt: 60, colore: [185, 60, 150] },
+const TAPPE_COLORE_VENTO_KT = [
+  { valore: 0,  colore: [61, 78, 161] },
+  { valore: 5,  colore: [47, 128, 176] },
+  { valore: 10, colore: [47, 174, 122] },
+  { valore: 20, colore: [142, 199, 63] },
+  { valore: 30, colore: [232, 201, 60] },
+  { valore: 40, colore: [226, 114, 58] },
+  { valore: 60, colore: [185, 60, 150] },
 ];
 
-function coloreDaVelocita(kt) {
-  const v = Math.max(0, Math.min(kt, 60));
-  for (let i = 0; i < TAPPE_COLORE_KT.length - 1; i++) {
-    const a = TAPPE_COLORE_KT[i], b = TAPPE_COLORE_KT[i + 1];
-    if (v >= a.kt && v <= b.kt) {
-      const t = (v - a.kt) / (b.kt - a.kt);
+// Altezza onda in metri (scala Douglas semplificata): calmo → mosso → agitato.
+const TAPPE_COLORE_MARE_M = [
+  { valore: 0,    colore: [61, 78, 161] },
+  { valore: 0.3,  colore: [47, 128, 176] },
+  { valore: 0.6,  colore: [47, 174, 122] },
+  { valore: 1.0,  colore: [142, 199, 63] },
+  { valore: 1.5,  colore: [232, 201, 60] },
+  { valore: 2.5,  colore: [226, 114, 58] },
+  { valore: 4.0,  colore: [185, 60, 150] },
+];
+
+function coloreDaValore(valore, tappe) {
+  const max = tappe[tappe.length - 1].valore;
+  const v = Math.max(0, Math.min(valore, max));
+  for (let i = 0; i < tappe.length - 1; i++) {
+    const a = tappe[i], b = tappe[i + 1];
+    if (v >= a.valore && v <= b.valore) {
+      const t = (v - a.valore) / (b.valore - a.valore);
       return [0, 1, 2].map((k) => Math.round(a.colore[k] + (b.colore[k] - a.colore[k]) * t));
     }
   }
-  return TAPPE_COLORE_KT[TAPPE_COLORE_KT.length - 1].colore;
+  return tappe[tappe.length - 1].colore;
 }
 
 // Punti utili all'interpolazione nel momento selezionato: solo quelli con
-// coordinate dentro la bbox Abruzzo + margine, e con un dato vento valido
-// per l'ora corrente.
+// coordinate dentro la bbox Abruzzo + margine, e con un dato valido per la
+// variabile attualmente selezionata (vento o mare/corrente) nell'ora corrente.
+//
+// In modalità "mare" il COLORE segue l'altezza dell'onda (variabile "statica",
+// non è qualcosa che scorre) mentre le PARTICELLE seguono la corrente
+// (direzione+velocità) — sono due grandezze fisiche diverse, non la stessa
+// cosa vista in due modi, coerente con come vista-adriatico.html mostra già
+// vento e corrente come due strati separati.
 function puntiPerCampo(istante) {
   const margine = ABRUZZO_MARGINE_INTERPOLAZIONE;
   const dentroMargine = (p) =>
@@ -515,16 +636,48 @@ function puntiPerCampo(istante) {
     p.lon >= ABRUZZO_BOUNDS.getWest() - margine && p.lon <= ABRUZZO_BOUNDS.getEast() + margine;
 
   const risultato = [];
-  for (const p of tuttiIPunti()) {
+
+  if (variabileCampo === "vento") {
+    for (const p of tuttiIPunti()) {
+      if (!dentroMargine(p)) continue;
+      const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
+      if (!oraDati || oraDati.vento_nodi === null || oraDati.vento_nodi === undefined) continue;
+      const direzioneRad = ((oraDati.direzione_gradi ?? 0) + 180) * Math.PI / 180; // dove il vento VA, non da dove viene
+      risultato.push({
+        lat: p.lat, lon: p.lon,
+        vx: Math.sin(direzioneRad) * oraDati.vento_nodi,
+        vy: -Math.cos(direzioneRad) * oraDati.vento_nodi,
+        valoreColore: oraDati.vento_nodi,
+      });
+    }
+    return risultato;
+  }
+
+  // variabileCampo === "mare"
+  for (const p of puntiCore) {
     if (!dentroMargine(p)) continue;
     const oraDati = trovaVoceVicina(p.orario, istante, 45 * 60 * 1000);
-    if (!oraDati || oraDati.vento_nodi === null || oraDati.vento_nodi === undefined) continue;
-    const direzioneRad = ((oraDati.direzione_gradi ?? 0) + 180) * Math.PI / 180; // dove il vento VA, non da dove viene
+    if (!oraDati || oraDati.altezza_onda_m === null || oraDati.altezza_onda_m === undefined) continue;
+    const correnteNodi = oraDati.corrente_nodi ?? 0;
+    const direzioneRad = ((oraDati.corrente_direzione_gradi ?? 0) + 180) * Math.PI / 180;
     risultato.push({
       lat: p.lat, lon: p.lon,
-      vx: Math.sin(direzioneRad) * oraDati.vento_nodi,
-      vy: -Math.cos(direzioneRad) * oraDati.vento_nodi,
-      speedKt: oraDati.vento_nodi,
+      vx: Math.sin(direzioneRad) * correnteNodi,
+      vy: -Math.cos(direzioneRad) * correnteNodi,
+      valoreColore: oraDati.altezza_onda_m,
+    });
+  }
+  for (const p of puntiEstesi) {
+    if (!dentroMargine(p) || !p.mareOrario) continue;
+    const oraDati = trovaVoceVicina(p.mareOrario, istante, 45 * 60 * 1000);
+    if (!oraDati || oraDati.altezza_onda_m === null || oraDati.altezza_onda_m === undefined) continue;
+    const correnteNodi = oraDati.corrente_nodi ?? 0;
+    const direzioneRad = ((oraDati.corrente_direzione_gradi ?? 0) + 180) * Math.PI / 180;
+    risultato.push({
+      lat: p.lat, lon: p.lon,
+      vx: Math.sin(direzioneRad) * correnteNodi,
+      vy: -Math.cos(direzioneRad) * correnteNodi,
+      valoreColore: oraDati.altezza_onda_m,
     });
   }
   return risultato;
@@ -540,15 +693,17 @@ function calcolaCampo() {
 
   const puntiPx = puntiDati.map((p) => {
     const pt = mappa.latLngToContainerPoint([p.lat, p.lon]);
-    return { x: pt.x, y: pt.y, vx: p.vx, vy: p.vy, speedKt: p.speedKt };
+    return { x: pt.x, y: pt.y, vx: p.vx, vy: p.vy, valoreColore: p.valoreColore };
   });
+
+  const tappeColore = variabileCampo === "vento" ? TAPPE_COLORE_VENTO_KT : TAPPE_COLORE_MARE_M;
 
   const cellPx = 10;
   const cols = Math.ceil(canvasCampo.width / cellPx);
   const rows = Math.ceil(canvasCampo.height / cellPx);
   const vx = new Float32Array(cols * rows);
   const vy = new Float32Array(cols * rows);
-  const speed = new Float32Array(cols * rows);
+  const valore = new Float32Array(cols * rows);
 
   const immagine = ctxCampo.createImageData(canvasCampo.width, canvasCampo.height);
 
@@ -557,21 +712,21 @@ function calcolaCampo() {
       const cx = col * cellPx + cellPx / 2;
       const cy = riga * cellPx + cellPx / 2;
 
-      let sommaPesi = 0, sVx = 0, sVy = 0, sSpeed = 0;
+      let sommaPesi = 0, sVx = 0, sVy = 0, sValore = 0;
       for (const p of puntiPx) {
         const d2 = (p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy);
         const peso = 1 / Math.max(d2, 400); // 400 = clamp per evitare pesi infiniti troppo vicino al punto
         sommaPesi += peso;
         sVx += p.vx * peso;
         sVy += p.vy * peso;
-        sSpeed += p.speedKt * peso;
+        sValore += p.valoreColore * peso;
       }
       const idx = riga * cols + col;
       vx[idx] = sVx / sommaPesi;
       vy[idx] = sVy / sommaPesi;
-      speed[idx] = sSpeed / sommaPesi;
+      valore[idx] = sValore / sommaPesi;
 
-      const [r, g, b] = coloreDaVelocita(speed[idx]);
+      const [r, g, b] = coloreDaValore(valore[idx], tappeColore);
       const alpha = Math.round(255 * 0.42);
       for (let py = riga * cellPx; py < Math.min((riga + 1) * cellPx, canvasCampo.height); py++) {
         for (let px = col * cellPx; px < Math.min((col + 1) * cellPx, canvasCampo.width); px++) {
@@ -582,7 +737,7 @@ function calcolaCampo() {
     }
   }
 
-  campoVettoriale = { cols, rows, cellPx, vx, vy, speed, larghezza: canvasCampo.width, altezza: canvasCampo.height };
+  campoVettoriale = { cols, rows, cellPx, vx, vy, valore, larghezza: canvasCampo.width, altezza: canvasCampo.height };
 
   // Disegno il colore su un canvas offscreen a bassa risoluzione, poi lo
   // scalo con smoothing sul canvas visibile — è quello che dà l'effetto
@@ -621,7 +776,7 @@ function campionaVettore(x, y) {
   const riga = Math.floor(y / campoVettoriale.cellPx);
   if (col < 0 || col >= campoVettoriale.cols || riga < 0 || riga >= campoVettoriale.rows) return null;
   const idx = riga * campoVettoriale.cols + col;
-  return { vx: campoVettoriale.vx[idx], vy: campoVettoriale.vy[idx], speedKt: campoVettoriale.speed[idx] };
+  return { vx: campoVettoriale.vx[idx], vy: campoVettoriale.vy[idx], valore: campoVettoriale.valore[idx] };
 }
 
 function nuovaParticella() {
@@ -662,7 +817,7 @@ function avviaAnimazioneParticelle() {
         const vett = campionaVettore(part.x, part.y);
         part.px = part.x; part.py = part.y;
         if (!vett) { Object.assign(part, nuovaParticella()); continue; }
-        const scala = 0.09;
+        const scala = variabileCampo === "vento" ? 0.09 : 0.6; // le correnti sono ~10-20x più lente del vento in nodi: senza questo le particelle sembrerebbero ferme
         part.x += vett.vx * scala;
         part.y += vett.vy * scala;
         part.eta++;
@@ -927,6 +1082,48 @@ async function avviaPagina() {
     aggiornaTutto();
   });
   document.getElementById("btn-play").addEventListener("click", avviaAnimazione);
+  document.getElementById("btn-variabile-vento").addEventListener("click", () => attivaVariabile("vento"));
+  document.getElementById("btn-variabile-mare").addEventListener("click", () => attivaVariabile("mare"));
+  aggiornaLegendaCampo();
+}
+
+function aggiornaLegendaCampo() {
+  const unita = document.getElementById("unita-legenda-campo");
+  const barra = document.getElementById("barra-legenda-campo");
+  const etichette = document.getElementById("barra-legenda-campo-etichette");
+  const notaGenerica = document.getElementById("nota-legenda-generica");
+
+  if (variabileCampo === "vento") {
+    unita.textContent = "kt";
+    barra.style.background = "linear-gradient(90deg, #3d4ea1, #2f80b0, #2fae7a, #8ec73f, #e8c93c, #e2723a, #b93c96)";
+    etichette.innerHTML = "<span>0</span><span>5</span><span>10</span><span>20</span><span>30</span><span>40</span><span>60+</span>";
+    notaGenerica.textContent = "Il colore segue l'intensità del vento · le particelle mostrano dove soffia · seleziona un punto qui sotto per il dettaglio";
+  } else {
+    unita.textContent = "m";
+    barra.style.background = "linear-gradient(90deg, #3d4ea1, #2f80b0, #2fae7a, #8ec73f, #e8c93c, #e2723a, #b93c96)";
+    etichette.innerHTML = "<span>0</span><span>0.3</span><span>0.6</span><span>1</span><span>1.5</span><span>2.5</span><span>4+</span>";
+    notaGenerica.textContent = "Il colore segue l'altezza dell'onda · le particelle mostrano la corrente (grandezza diversa dall'onda, non scorre nella stessa direzione) · seleziona un punto qui sotto per il dettaglio";
+  }
+}
+
+async function attivaVariabile(nuovaVariabile) {
+  if (variabileCampo === nuovaVariabile) return;
+
+  if (nuovaVariabile === "mare" && !mareEstesiCaricati) {
+    const box = document.getElementById("caricamento-mare");
+    const percentualeEl = document.getElementById("caricamento-mare-percentuale");
+    box.style.display = "block";
+    await caricaDatiMareEstesi((fatti, totali) => {
+      percentualeEl.textContent = Math.round((fatti / totali) * 100) + "%";
+    });
+    box.style.display = "none";
+  }
+
+  variabileCampo = nuovaVariabile;
+  document.getElementById("btn-variabile-vento").classList.toggle("attiva", nuovaVariabile === "vento");
+  document.getElementById("btn-variabile-mare").classList.toggle("attiva", nuovaVariabile === "mare");
+  aggiornaLegendaCampo();
+  ricalcolaCampoCompleto(); // qui SÌ reset particelle: la grandezza fisica è cambiata, niente scia da "continuare"
 }
 
 // --- Autenticazione (identico pattern delle altre pagine) ---------------------
