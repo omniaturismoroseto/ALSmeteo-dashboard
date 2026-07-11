@@ -341,6 +341,19 @@ let offsetEstesoVento = 0;
 let offsetEstesoMare = 0;
 let frazioneAnimazione = 0; // 0-1: quanto siamo "dentro" all'ora indiceOra verso indiceOra+1 — usato solo durante il play, per interpolare in modo fluido tra un'ora e la successiva
 
+// Lo slider manuale ora si muove a passi di 10 minuti (non ore intere): il
+// dato reale resta orario, i 10 minuti in mezzo sono interpolati con la
+// stessa logica già usata per il play fluido — non inventiamo un dato più
+// preciso di quello che abbiamo, ma almeno il movimento non è più a scatti.
+const PASSI_PER_ORA = 6;
+function passoTotaleAttuale() {
+  return indiceOra * PASSI_PER_ORA + Math.round(frazioneAnimazione * PASSI_PER_ORA);
+}
+function istanteInterpolato() {
+  if (!timelineMaster[indiceOra]) return null;
+  return new Date(timelineMaster[indiceOra].getTime() + frazioneAnimazione * 3600 * 1000);
+}
+
 // --- Switch Vento / Mare -----------------------------------------------
 let variabileCampo = "vento"; // "vento" | "mare"
 let mareEstesiCaricati = false;
@@ -765,7 +778,7 @@ function calcolaCampo() {
   // in pixel si adatta bene allo zoom: più si zooma indietro, più km copre,
   // che è quello che si vuole (la "fascia" costiera resta visibile anche a
   // vista Italia intera, invece di ridursi a puntini invisibili).
-  const SOGLIA_COPERTURA_PX = 150;
+  const SOGLIA_COPERTURA_PX = 260;
 
   const cellPx = 10;
   const cols = Math.ceil(canvasCampo.width / cellPx);
@@ -805,7 +818,7 @@ function calcolaCampo() {
       const [r, g, b] = coloreDaValore(valore[idx], tappeColore);
       // Alpha sfuma verso i bordi della copertura invece di tagliare di netto.
       const distanzaMin = Math.sqrt(distanzaMin2);
-      const fattoreSfumatura = Math.max(0, Math.min(1, 1 - (distanzaMin / SOGLIA_COPERTURA_PX - 0.6) / 0.4));
+      const fattoreSfumatura = Math.max(0, Math.min(1, 1 - (distanzaMin / SOGLIA_COPERTURA_PX - 0.45) / 0.55));
       const alpha = Math.round(255 * 0.42 * fattoreSfumatura);
       for (let py = riga * cellPx; py < Math.min((riga + 1) * cellPx, canvasCampo.height); py++) {
         for (let px = col * cellPx; px < Math.min((col + 1) * cellPx, canvasCampo.width); px++) {
@@ -974,7 +987,7 @@ function popolaTabellaOraria() {
     riga.addEventListener("click", () => {
       indiceOra = idx;
       frazioneAnimazione = 0;
-      document.getElementById("slider-tempo").value = idx;
+      document.getElementById("slider-tempo").value = passoTotaleAttuale();
       aggiornaTutto();
     });
     corpo.appendChild(riga);
@@ -1008,7 +1021,7 @@ function popolaPilloleGiorno() {
     pillola.addEventListener("click", () => {
       indiceOra = idx;
       frazioneAnimazione = 0;
-      document.getElementById("slider-tempo").value = idx;
+      document.getElementById("slider-tempo").value = passoTotaleAttuale();
       aggiornaTutto();
     });
     contenitore.appendChild(pillola);
@@ -1017,7 +1030,7 @@ function popolaPilloleGiorno() {
 
 // --- Ciclo di aggiornamento principale ----------------------------------------
 function aggiornaTutto() {
-  const istante = timelineMaster[indiceOra];
+  const istante = istanteInterpolato();
   if (!istante) return;
 
   try {
@@ -1048,7 +1061,7 @@ function avviaAnimazione() {
     animazionePlayAttiva = false;
     btn.textContent = "▶";
     frazioneAnimazione = 0;
-    document.getElementById("slider-tempo").value = indiceOra;
+    document.getElementById("slider-tempo").value = passoTotaleAttuale();
     aggiornaTutto(); // allinea il campo esattamente all'ora intera mostrata, senza restare "a metà"
     return;
   }
@@ -1071,7 +1084,7 @@ function passoPlay(ts) {
 
   if (ts - ultimoAggiornamentoPlayMs >= 80) { // ~12 volte al secondo per il ricalcolo pesante
     ultimoAggiornamentoPlayMs = ts;
-    document.getElementById("slider-tempo").value = indiceOra;
+    document.getElementById("slider-tempo").value = passoTotaleAttuale();
     aggiornaTutto();
   }
 
@@ -1083,7 +1096,8 @@ async function avviaPagina() {
   if (!ok) return;
 
   const slider = document.getElementById("slider-tempo");
-  slider.max = timelineMaster.length - 1;
+  slider.max = (timelineMaster.length - 1) * PASSI_PER_ORA;
+  slider.step = 1;
 
   const adesso = Date.now();
   let migliore = 0, distanzaMin = Infinity;
@@ -1092,7 +1106,14 @@ async function avviaPagina() {
     if (diff < distanzaMin) { distanzaMin = diff; migliore = i; }
   });
   indiceOra = migliore;
-  slider.value = indiceOra;
+
+  // Posiziono anche la frazione, per partire dal minuto (quasi) esatto
+  // invece che dall'ora piena più vicina.
+  if (timelineMaster[indiceOra] && timelineMaster[indiceOra].getTime() > adesso && indiceOra > 0) indiceOra -= 1;
+  if (timelineMaster[indiceOra]) {
+    frazioneAnimazione = Math.max(0, Math.min(1, (adesso - timelineMaster[indiceOra].getTime()) / (3600 * 1000)));
+  }
+  slider.value = passoTotaleAttuale();
 
   // IMPORTANTE: i controlli essenziali (slider, play, switch vento/mare) si
   // attaccano SUBITO, prima di toccare mappa/campo colorato/grafico. Se uno
@@ -1102,8 +1123,9 @@ async function avviaPagina() {
   // canvas, interpolazione) faceva sì che slider/play/switch non venissero
   // MAI collegati, restando come "morti" senza nessun errore visibile.
   slider.addEventListener("input", () => {
-    indiceOra = parseInt(slider.value, 10);
-    frazioneAnimazione = 0;
+    const passoTotale = parseInt(slider.value, 10);
+    indiceOra = Math.floor(passoTotale / PASSI_PER_ORA);
+    frazioneAnimazione = (passoTotale % PASSI_PER_ORA) / PASSI_PER_ORA;
     aggiornaTutto();
   });
   document.getElementById("btn-play").addEventListener("click", avviaAnimazione);
