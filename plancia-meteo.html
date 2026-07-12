@@ -497,8 +497,11 @@
 
   .satellite-immagine {
     width: 100%;
+    height: 320px;
+    object-fit: cover;
     border-radius: 6px;
     border: 1px solid var(--line);
+    background: #0d222b;
     display: block;
   }
 
@@ -775,21 +778,6 @@
     </div>
     <p class="assistente-nota">Le osservazioni registrate qui finiscono nella stessa raccolta di "+ osservazione manuale" e vengono usate per la calibrazione.</p>
   </div>
-</div>
-
-<div class="pannello-satellite">
-  <div class="sezione-titolo"><span>🛰️ Satellite Adriatico centrale</span></div>
-  <img
-    id="satellite-immagine"
-    class="satellite-immagine"
-    alt="Immagine satellite infrarosso — Adriatico centrale"
-    src="https://view.eumetsat.int/geoserver/wms?service=WMS&amp;version=1.3.0&amp;request=GetMap&amp;layers=mtg_fd:ir105_hrfi&amp;styles=mtg_fd:mtg_fd_ir105_hrfi_style_02&amp;crs=CRS:84&amp;bbox=12,40,18,45&amp;width=720&amp;height=600&amp;format=image/png"
-    onerror="this.onerror=null; this.src=this.src.replace('mtg_fd:mtg_fd_ir105_hrfi_style_02','mtg_fd:mtg_fd_ir105_hrfi_grayscale');"
-  >
-  <p class="satellite-nota">
-    Canale infrarosso (10.5 µm) del satellite Meteosat di nuova generazione — funziona sia di giorno sia di notte, a differenza dell'immagine "a colori naturali" che di notte è nera. Le nubi più bianche/luminose sono quelle più alte e fredde, tipicamente i temporali. Aggiornamento ogni 10 minuti.
-    <button id="satellite-aggiorna" style="margin-left:0.5rem; background:none; border:1px solid var(--line); color:var(--brass); border-radius:4px; padding:0.1rem 0.5rem; cursor:pointer; font-size:0.68rem;">↻ aggiorna</button>
-  </p>
 </div>
 
 <main>
@@ -1201,7 +1189,27 @@ function renderTutto() {
       </div>
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
+    </div>
+    <div class="pannello-satellite">
+      <div class="sezione-titolo"><span>🛰️ Satellite Adriatico centrale</span></div>
+      <img
+        id="satellite-immagine"
+        class="satellite-immagine"
+        alt="Immagine satellite infrarosso — Adriatico centrale"
+        src="https://view.eumetsat.int/geoserver/wms?service=WMS&amp;version=1.3.0&amp;request=GetMap&amp;layers=mtg_fd:ir105_hrfi&amp;styles=mtg_fd:mtg_fd_ir105_hrfi_style_01&amp;crs=CRS:84&amp;bbox=12,40,18,45&amp;width=720&amp;height=600&amp;format=image/png"
+        onerror="this.onerror=null; this.src=this.src.replace('mtg_fd:mtg_fd_ir105_hrfi_style_01','mtg_fd:mtg_fd_ir105_hrfi_grayscale');"
+      >
+      <p class="satellite-nota">
+        Canale infrarosso (10.5 µm) del satellite Meteosat di nuova generazione — funziona sia di giorno sia di notte, a differenza dell'immagine "a colori naturali" che di notte è nera. Le nubi più bianche/luminose sono quelle più alte e fredde, tipicamente i temporali. Aggiornamento ogni 10 minuti.
+        <button id="satellite-aggiorna" style="margin-left:0.5rem; background:none; border:1px solid var(--line); color:var(--brass); border-radius:4px; padding:0.1rem 0.5rem; cursor:pointer; font-size:0.68rem;">↻ aggiorna</button>
+      </p>
     </div>`;
+
+  document.getElementById("satellite-aggiorna")?.addEventListener("click", () => {
+    const img = document.getElementById("satellite-immagine");
+    const base = img.src.split("&_=")[0];
+    img.src = `${base}&_=${Date.now()}`;
+  });
 
   inizializzaRadar();
 
@@ -1432,12 +1440,8 @@ elInviaAssistente.addEventListener("click", async () => {
   }
 });
 
-// --- SATELLITE: refresh manuale (bypassa la cache del browser sull'URL) ---
-document.getElementById("satellite-aggiorna").addEventListener("click", () => {
-  const img = document.getElementById("satellite-immagine");
-  const base = img.src.split("&_=")[0];
-  img.src = `${base}&_=${Date.now()}`;
-});
+// --- SATELLITE: il listener di refresh è agganciato dentro renderTutto(),
+// perché il bottone viene ricreato ad ogni render (innerHTML sostituito).
 
 onAuthStateChanged(auth, (utente) => {
   const schermataLogin = document.getElementById("schermata-login");
