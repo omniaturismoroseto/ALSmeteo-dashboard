@@ -524,6 +524,22 @@
     background: #0d222b;
   }
 
+  .pannello-satellite-mappa {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    margin-bottom: 2rem;
+  }
+
+  #mappa-satellite {
+    width: 100%;
+    height: 320px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #0d222b;
+  }
+
   .radar-controlli {
     display: flex;
     align-items: center;
@@ -629,7 +645,6 @@
     <a href="storico-meteo.html">📅 storico</a>
     <a href="gestione-lidi.html">🏖️ gestione lidi</a>
     <a href="vista-adriatico.html">🌊 vista adriatico</a>
-    <a href="previsione-72h.html">⏱️ previsione 72h</a>
     <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
   </div>
 </header>
@@ -1043,9 +1058,20 @@ function renderTutto() {
       </div>
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
+    </div>
+    <div class="pannello-satellite-mappa">
+      <div class="sezione-titolo"><span>Satellite Nuvolosità Omnia ALS</span></div>
+      <div style="position:relative;">
+        <div id="mappa-satellite"></div>
+        <div style="position:absolute; top:10px; right:10px; z-index:500; background:rgba(15,39,51,0.85); border:1px solid var(--brass-dim); border-radius:6px; padding:0.3rem 0.5rem; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--brass); font-size:0.85rem; font-weight:600; pointer-events:none;">
+          ↑<br><span style="font-size:0.6rem;">N</span>
+        </div>
+      </div>
+      <p class="satellite-nota">Immagine satellitare EUMETSAT (Meteosat, canale infrarosso 10.8µm) — funziona anche di notte: le nuvole più alte e fredde appaiono più chiare, il terreno/mare più scuro. Il puntino verde è Roseto/Pineto, per orientarti. Aggiornamento ogni ~15 minuti.</p>
     </div>`;
 
   inizializzaRadar();
+  inizializzaSatellite();
 
   document.querySelectorAll("[data-punto]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -1197,6 +1223,29 @@ function inizializzaRadar() {
   document.getElementById("radar-play")?.addEventListener("click", alternaAnimazioneRadar);
   document.getElementById("radar-prev")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(-1); });
   document.getElementById("radar-next")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(1); });
+}
+
+let mappaSatellite = null;
+
+function inizializzaSatellite() {
+  const contenitore = document.getElementById("mappa-satellite");
+  if (!contenitore || typeof L === "undefined") return;
+  if (mappaSatellite) return; // evita doppia inizializzazione se la funzione viene richiamata più volte
+
+  mappaSatellite = L.map("mappa-satellite", { zoomControl: false, attributionControl: false, maxZoom: 8, minZoom: 5 }).setView([42.75, 13.8], 6);
+
+  // Canale infrarosso 10.8µm di Meteosat (EUMETSAT, servizio pubblico WMS):
+  // funziona di giorno e di notte, a differenza dei canali "colore naturale"
+  // che al buio restituirebbero un'immagine nera.
+  L.tileLayer.wms("https://view.eumetsat.int/geoserver/wms", {
+    layers: "msg_fes:ir108",
+    format: "image/png",
+    transparent: true,
+    version: "1.1.1",
+    attribution: "EUMETSAT",
+  }).addTo(mappaSatellite);
+
+  L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaSatellite).bindTooltip("Roseto/Pineto", { permanent: false, direction: "top", className: "mono" });
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
