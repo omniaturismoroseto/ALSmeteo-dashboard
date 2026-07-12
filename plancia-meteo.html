@@ -524,22 +524,6 @@
     background: #0d222b;
   }
 
-  .pannello-satellite-mappa {
-    background: var(--bg-panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 1.1rem 1rem;
-    margin-bottom: 2rem;
-  }
-
-  #mappa-satellite {
-    width: 100%;
-    height: 320px;
-    border-radius: 6px;
-    border: 1px solid var(--line);
-    background: #0d222b;
-  }
-
   .radar-controlli {
     display: flex;
     align-items: center;
@@ -629,6 +613,134 @@
     .griglia-punti { grid-template-columns: 1fr 1fr; }
     .corpo-carta { flex-direction: column; align-items: flex-start; }
   }
+
+  .pannello-assistente {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin: 0.9rem 1.25rem 0;
+  }
+
+  .assistente-intestazione {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .assistente-intestazione h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--brass);
+    margin: 0;
+  }
+
+  .assistente-intestazione .freccia {
+    color: var(--ink-muted);
+    transition: transform 0.15s ease;
+    font-size: 0.8rem;
+  }
+
+  .pannello-assistente.aperto .freccia { transform: rotate(180deg); }
+
+  .assistente-corpo {
+    display: none;
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .pannello-assistente.aperto .assistente-corpo { display: block; }
+
+  .assistente-log {
+    max-height: 320px;
+    overflow-y: auto;
+    padding-top: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .assistente-msg {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    max-width: 90%;
+    white-space: pre-wrap;
+  }
+
+  .assistente-msg.utente {
+    background: var(--bg-panel-raised);
+    align-self: flex-end;
+    color: var(--ink);
+  }
+
+  .assistente-msg.bot {
+    background: var(--bg-panel-raised-2);
+    align-self: flex-start;
+    color: var(--ink);
+  }
+
+  .assistente-msg.bot.registrato {
+    border-left: 3px solid var(--flag-verde);
+  }
+
+  .assistente-msg.errore {
+    background: var(--flag-rosso-bg);
+    color: var(--flag-rosso);
+    align-self: flex-start;
+  }
+
+  .assistente-riga-input {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+  }
+
+  .assistente-riga-input textarea {
+    flex: 1;
+    resize: none;
+    min-height: 42px;
+    max-height: 120px;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 8px;
+  }
+
+  .assistente-riga-input textarea:focus {
+    outline: none;
+    border-color: var(--brass);
+  }
+
+  .assistente-riga-input button {
+    background: var(--brass);
+    color: #1A1206;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0 1.1rem;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .assistente-riga-input button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .assistente-nota {
+    font-size: 0.7rem;
+    color: var(--ink-faint);
+    margin-top: 0.5rem;
+  }
 </style>
 </head>
 <body>
@@ -648,6 +760,21 @@
     <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
   </div>
 </header>
+
+<div class="pannello-assistente" id="pannello-assistente">
+  <div class="assistente-intestazione" id="assistente-toggle">
+    <h2>💬 Chiedi alla plancia</h2>
+    <span class="freccia">▼</span>
+  </div>
+  <div class="assistente-corpo">
+    <div class="assistente-log" id="assistente-log"></div>
+    <div class="assistente-riga-input">
+      <textarea id="assistente-input" placeholder="Chiedi qualcosa sulle previsioni o segnala un'osservazione (es. 'hai segnato onda 0.2 ma il mare è mosso ed è 0,8')" rows="1"></textarea>
+      <button id="assistente-invia">Invia</button>
+    </div>
+    <p class="assistente-nota">Le osservazioni registrate qui finiscono nella stessa raccolta di "+ osservazione manuale" e vengono usate per la calibrazione.</p>
+  </div>
+</div>
 
 <main>
   <div id="contenuto">
@@ -1058,20 +1185,9 @@ function renderTutto() {
       </div>
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
-    </div>
-    <div class="pannello-satellite-mappa">
-      <div class="sezione-titolo"><span>Satellite Nuvolosità Omnia ALS</span></div>
-      <div style="position:relative;">
-        <div id="mappa-satellite"></div>
-        <div style="position:absolute; top:10px; right:10px; z-index:500; background:rgba(15,39,51,0.85); border:1px solid var(--brass-dim); border-radius:6px; padding:0.3rem 0.5rem; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--brass); font-size:0.85rem; font-weight:600; pointer-events:none;">
-          ↑<br><span style="font-size:0.6rem;">N</span>
-        </div>
-      </div>
-      <p class="satellite-nota">Immagine satellitare EUMETSAT (Meteosat, canale infrarosso 10.8µm) — funziona anche di notte: le nuvole più alte e fredde appaiono più chiare, il terreno/mare più scuro. Il puntino verde è Roseto/Pineto, per orientarti. Aggiornamento ogni ~15 minuti.</p>
     </div>`;
 
   inizializzaRadar();
-  inizializzaSatellite();
 
   document.querySelectorAll("[data-punto]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -1225,29 +1341,6 @@ function inizializzaRadar() {
   document.getElementById("radar-next")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(1); });
 }
 
-let mappaSatellite = null;
-
-function inizializzaSatellite() {
-  const contenitore = document.getElementById("mappa-satellite");
-  if (!contenitore || typeof L === "undefined") return;
-  if (mappaSatellite) return; // evita doppia inizializzazione se la funzione viene richiamata più volte
-
-  mappaSatellite = L.map("mappa-satellite", { zoomControl: false, attributionControl: false, maxZoom: 8, minZoom: 5 }).setView([42.75, 13.8], 6);
-
-  // Canale infrarosso 10.8µm di Meteosat (EUMETSAT, servizio pubblico WMS):
-  // funziona di giorno e di notte, a differenza dei canali "colore naturale"
-  // che al buio restituirebbero un'immagine nera.
-  L.tileLayer.wms("https://view.eumetsat.int/geoserver/wms", {
-    layers: "msg_fes:ir108",
-    format: "image/png",
-    transparent: true,
-    version: "1.1.1",
-    attribution: "EUMETSAT",
-  }).addTo(mappaSatellite);
-
-  L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaSatellite).bindTooltip("Roseto/Pineto", { permanent: false, direction: "top", className: "mono" });
-}
-
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
 
 // --- AUTENTICAZIONE: il contenuto parte solo dopo il login ---------------
@@ -1255,6 +1348,73 @@ const auth = getAuth(app);
 let intervalloAggiornamento = null;
 
 setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+// --- ASSISTENTE PLANCIA: pannello domande/osservazioni in linguaggio libero
+const URL_ASSISTENTE_PLANCIA = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/assistentePlancia";
+
+const elToggleAssistente = document.getElementById("assistente-toggle");
+const elPannelloAssistente = document.getElementById("pannello-assistente");
+elToggleAssistente.addEventListener("click", () => elPannelloAssistente.classList.toggle("aperto"));
+
+const elLogAssistente = document.getElementById("assistente-log");
+const elInputAssistente = document.getElementById("assistente-input");
+const elInviaAssistente = document.getElementById("assistente-invia");
+
+let storicoChatAssistente = [];
+
+function aggiungiMessaggioAssistente(testo, classe) {
+  const div = document.createElement("div");
+  div.className = `assistente-msg ${classe}`;
+  div.textContent = testo;
+  elLogAssistente.appendChild(div);
+  elLogAssistente.scrollTop = elLogAssistente.scrollHeight;
+  return div;
+}
+
+elInputAssistente.addEventListener("input", () => {
+  elInputAssistente.style.height = "auto";
+  elInputAssistente.style.height = Math.min(elInputAssistente.scrollHeight, 120) + "px";
+});
+
+elInputAssistente.addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter" && !evento.shiftKey) {
+    evento.preventDefault();
+    elInviaAssistente.click();
+  }
+});
+
+elInviaAssistente.addEventListener("click", async () => {
+  const testo = elInputAssistente.value.trim();
+  if (!testo || !auth.currentUser) return;
+
+  aggiungiMessaggioAssistente(testo, "utente");
+  elInputAssistente.value = "";
+  elInputAssistente.style.height = "auto";
+  elInviaAssistente.disabled = true;
+  const msgAttesaAssistente = aggiungiMessaggioAssistente("Un momento...", "bot");
+
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const rispostaAssistente = await fetch(URL_ASSISTENTE_PLANCIA, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ messaggio: testo, storico: storicoChatAssistente }),
+    });
+    const datiAssistente = await rispostaAssistente.json();
+
+    if (!rispostaAssistente.ok) throw new Error(datiAssistente.errore || "Errore sconosciuto");
+
+    msgAttesaAssistente.textContent = datiAssistente.risposta;
+    if (datiAssistente.osservazioneRegistrata) msgAttesaAssistente.classList.add("registrato");
+    storicoChatAssistente = datiAssistente.storicoAggiornato || storicoChatAssistente;
+  } catch (errore) {
+    console.error(errore);
+    msgAttesaAssistente.textContent = "Errore nel contattare l'assistente. Riprova.";
+    msgAttesaAssistente.classList.add("errore");
+  } finally {
+    elInviaAssistente.disabled = false;
+  }
+});
 
 onAuthStateChanged(auth, (utente) => {
   const schermataLogin = document.getElementById("schermata-login");
