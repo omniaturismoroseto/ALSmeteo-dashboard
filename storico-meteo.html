@@ -143,7 +143,7 @@
 <main id="contenuto-principale" style="display:none;">
   <div class="pannello">
     <div class="sezione-titolo">Ultimi 7 giorni</div>
-    <div id="tabella-settimana"><div class="messaggio-stato">Caricamento...</div></div>
+    <div id="tabella-settimana"><div class="messaggio-stato">Caricamento…</div></div>
   </div>
 
   <div class="pannello">
@@ -156,7 +156,7 @@
 
   <div class="pannello">
     <div class="sezione-titolo">Distribuzione cumulativa (da sempre)</div>
-    <p id="didascalia-torte" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento...</p>
+    <p id="didascalia-torte" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento…</p>
     <div id="pannello-torte" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem;">
       <div>
         <p style="font-size:0.72rem; color:var(--ink-muted); text-align:center; margin:0 0 0.4rem;">Perturbazioni (direzione)</p>
@@ -174,7 +174,7 @@
   </div>
   <div class="pannello">
     <div class="sezione-titolo">Andamento stagionale — Indice UV massimo giornaliero</div>
-    <p id="nota-uv-stagione" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento...</p>
+    <p id="nota-uv-stagione" style="font-size:0.72rem; color:var(--ink-faint); margin:-0.5rem 0 0.9rem;">Caricamento…</p>
     <div class="grafico-contenitore"><canvas id="grafico-uv-stagione"></canvas></div>
   </div>
 </main>
@@ -589,7 +589,7 @@ function disegnaGraficoStorico(puntoId) {
 
 async function caricaDettaglioGiorno(data) {
   const contenitore = document.getElementById("dettaglio-giorno");
-  contenitore.innerHTML = `<div class="messaggio-stato">Caricamento ${data}...</div>`;
+  contenitore.innerHTML = `<div class="messaggio-stato">Caricamento ${data}…</div>`;
 
   rilevazioniGiornoCorrente = await caricaRilevazioniGiorno(data);
   if (rilevazioniGiornoCorrente.length === 0) {
