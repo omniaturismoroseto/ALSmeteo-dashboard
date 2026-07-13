@@ -20,10 +20,10 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg-abyss); color: var(--ink); font-family: 'Space Grotesk', sans-serif; padding: 0 0 3rem; }
   .mono { font-family: 'IBM Plex Mono', monospace; }
-  header { padding: 0.85rem 1rem 0.65rem; border-bottom: 1px solid var(--line); }
-  h1 { font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
+  header { padding: 1.5rem 1.25rem 1.25rem; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
   h1 span { color: var(--brass); }
-  p.sottotitolo { margin: 0.2rem 0 0; font-size: 0.7rem; color: var(--ink-muted); }
+  p.sottotitolo { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--ink-muted); }
   a.link-plancia { color: var(--brass); font-size: 0.78rem; text-decoration: none; }
   main { max-width: 800px; margin: 0 auto; padding: 1.5rem 1.25rem 0; }
   .messaggio-stato { padding: 2rem 1rem; text-align: center; color: var(--ink-muted); font-size: 0.85rem; }
@@ -47,6 +47,7 @@
   }
   .btn-approva { background: var(--flag-verde); color: #0A1C24; }
   .btn-rifiuta, .btn-revoca { background: var(--flag-rosso); color: #fff; }
+  .btn-modifica { background: var(--bg-panel-raised); color: var(--ink); border: 1px solid var(--line); }
   button.btn-azione:disabled { opacity: 0.5; cursor: default; }
 
   .schermata-login {
@@ -195,6 +196,7 @@ async function caricaAttivi() {
           <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.approvatoIl ? " · attivo dal " + new Date(dati.approvatoIl).toLocaleDateString("it-IT") : ""}</div>
         </div>
         <div class="azioni-lido">
+          <button class="btn-azione btn-modifica" data-azione="rinomina">Modifica nome</button>
           <button class="btn-azione btn-revoca" data-azione="revoca">Revoca</button>
         </div>
       </div>`;
@@ -204,6 +206,26 @@ async function caricaAttivi() {
     bottone.addEventListener("click", async () => {
       const voce = bottone.closest(".voce-lido");
       const chatId = voce.getAttribute("data-chat-id");
+      const azione = bottone.getAttribute("data-azione");
+
+      if (azione === "rinomina") {
+        const nomeAttuale = voce.querySelector(".nome-lido").textContent;
+        const nomeNuovo = prompt("Nuovo nome da visualizzare per questo lido:", nomeAttuale);
+        if (nomeNuovo === null) return; // annullato
+        const nomeNuovoPulito = nomeNuovo.trim();
+        if (!nomeNuovoPulito || nomeNuovoPulito === nomeAttuale) return;
+
+        bottone.disabled = true;
+        try {
+          await chiamaGestioneLido(chatId, "rinomina", nomeNuovoPulito);
+          await caricaTutto();
+        } catch (errore) {
+          alert(`Errore: ${errore.message}`);
+          bottone.disabled = false;
+        }
+        return;
+      }
+
       if (!confirm("Revocare l'accesso agli alert per questo lido?")) return;
       bottone.disabled = true;
       try {
