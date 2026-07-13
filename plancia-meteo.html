@@ -52,7 +52,7 @@
   .mono { font-family: 'IBM Plex Mono', monospace; }
 
   header {
-    padding: 0.85rem 1rem 0.65rem;
+    padding: 1.5rem 1.25rem 1.25rem;
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
@@ -62,20 +62,18 @@
 
   .titolo-riga {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
-    gap: 0.6rem;
+    gap: 1rem;
+    flex-wrap: wrap;
   }
 
   h1 {
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     margin: 0;
     text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   h1 span { color: var(--brass); }
@@ -83,11 +81,10 @@
   .stato-live {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    font-size: 0.68rem;
+    gap: 0.5rem;
+    font-size: 0.72rem;
     color: var(--ink-muted);
     font-family: 'IBM Plex Mono', monospace;
-    flex-shrink: 0;
   }
 
   .pallino-live {
@@ -98,39 +95,49 @@
     animation: pulsa 2.4s ease-in-out infinite;
   }
 
+  .bottone-refresh-header {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-size: 0.8rem;
+    line-height: 1;
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-left: 0.2rem;
+  }
+
+  .bottone-refresh-header:active {
+    border-color: var(--brass-dim);
+    color: var(--brass);
+  }
+
   @keyframes pulsa {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
   }
 
   .sottotitolo {
-    margin: 0.2rem 0 0;
-    font-size: 0.72rem;
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
     color: var(--ink-muted);
   }
 
   .barra-link {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 0.55rem;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 2px;
+    gap: 1.1rem;
+    margin-top: 0.7rem;
+    flex-wrap: wrap;
   }
-
-  .barra-link::-webkit-scrollbar { display: none; }
 
   .barra-link a {
     color: var(--brass);
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     text-decoration: none;
-    padding: 0.32rem 0.65rem;
+    padding: 0.3rem 0.6rem;
     border: 1px solid var(--brass-dim);
     border-radius: 20px;
     white-space: nowrap;
-    flex-shrink: 0;
   }
 
   .barra-link a:active {
@@ -232,6 +239,45 @@
     text-align: center;
     color: var(--ink-muted);
     font-size: 0.9rem;
+  }
+
+  /* --- SKELETON DI CARICAMENTO: ricalca la forma della griglia-punti così
+     la struttura della pagina appare subito, invece di uno schermo vuoto. --- */
+  .skeleton-griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.9rem;
+    margin-bottom: 2rem;
+  }
+
+  .skeleton-carta {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem;
+    height: 168px;
+  }
+
+  .skeleton-riga {
+    height: 0.75rem;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--bg-panel-raised) 25%, var(--bg-panel-raised-2) 50%, var(--bg-panel-raised) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-onda 1.6s ease-in-out infinite;
+    margin-bottom: 0.7rem;
+  }
+
+  .skeleton-riga.corta { width: 40%; }
+  .skeleton-riga.tonda { width: 76px; height: 76px; border-radius: 50%; margin: 0.3rem auto 1rem; }
+
+  @keyframes skeleton-onda {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-riga { animation: none; }
   }
 
   .griglia-punti {
@@ -507,11 +553,8 @@
 
   .satellite-immagine {
     width: 100%;
-    height: 320px;
-    object-fit: cover;
     border-radius: 6px;
     border: 1px solid var(--line);
-    background: #0d222b;
     display: block;
   }
 
@@ -520,6 +563,17 @@
     color: var(--ink-faint);
     margin-top: 0.6rem;
   }
+
+  .satellite-nota summary {
+    cursor: pointer;
+    color: var(--brass);
+    list-style: none;
+  }
+
+  .satellite-nota summary::-webkit-details-marker { display: none; }
+  .satellite-nota summary::after { content: " ›"; }
+  .satellite-nota[open] summary::after { content: " ⌄"; }
+  .satellite-nota .dettaglio-nota { margin-top: 0.4rem; }
 
   .pannello-radar {
     background: var(--bg-panel);
@@ -625,134 +679,8 @@
   @media (max-width: 520px) {
     .griglia-punti { grid-template-columns: 1fr 1fr; }
     .corpo-carta { flex-direction: column; align-items: flex-start; }
-  }
-
-  .pannello-assistente {
-    background: var(--bg-panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    margin: 0.65rem 1rem 0;
-  }
-
-  .assistente-intestazione {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.6rem 1rem;
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .assistente-intestazione h2 {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--brass);
-    margin: 0;
-  }
-
-  .assistente-intestazione .freccia {
-    color: var(--ink-muted);
-    transition: transform 0.15s ease;
-    font-size: 0.8rem;
-  }
-
-  .pannello-assistente.aperto .freccia { transform: rotate(180deg); }
-
-  .assistente-corpo {
-    display: none;
-    padding: 0 1rem 1rem;
-    border-top: 1px solid var(--line);
-  }
-
-  .pannello-assistente.aperto .assistente-corpo { display: block; }
-
-  .assistente-log {
-    max-height: 320px;
-    overflow-y: auto;
-    padding-top: 0.8rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .assistente-msg {
-    font-size: 0.85rem;
-    line-height: 1.4;
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    max-width: 90%;
-    white-space: pre-wrap;
-  }
-
-  .assistente-msg.utente {
-    background: var(--bg-panel-raised);
-    align-self: flex-end;
-    color: var(--ink);
-  }
-
-  .assistente-msg.bot {
-    background: var(--bg-panel-raised-2);
-    align-self: flex-start;
-    color: var(--ink);
-  }
-
-  .assistente-msg.bot.registrato {
-    border-left: 3px solid var(--flag-verde);
-  }
-
-  .assistente-msg.errore {
-    background: var(--flag-rosso-bg);
-    color: var(--flag-rosso);
-    align-self: flex-start;
-  }
-
-  .assistente-riga-input {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.8rem;
-  }
-
-  .assistente-riga-input textarea {
-    flex: 1;
-    resize: none;
-    min-height: 42px;
-    max-height: 120px;
-    background: var(--bg-panel-raised);
-    border: 1px solid var(--line);
-    color: var(--ink);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.85rem;
-    padding: 0.6rem 0.7rem;
-    border-radius: 8px;
-  }
-
-  .assistente-riga-input textarea:focus {
-    outline: none;
-    border-color: var(--brass);
-  }
-
-  .assistente-riga-input button {
-    background: var(--brass);
-    color: #1A1206;
-    border: none;
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 600;
-    font-size: 0.85rem;
-    padding: 0 1.1rem;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .assistente-riga-input button:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-
-  .assistente-nota {
-    font-size: 0.7rem;
-    color: var(--ink-faint);
-    margin-top: 0.5rem;
+    .barra-link { gap: 0.5rem; }
+    .barra-link a { font-size: 0.66rem; padding: 0.28rem 0.5rem; }
   }
 </style>
 </head>
@@ -760,39 +688,28 @@
 
 <header>
   <div class="titolo-riga">
-    <h1><span>Omnia</span> · Plancia</h1>
-    <div class="stato-live"><span class="pallino-live" id="pallino-live"></span><span id="testo-live">connessione...</span></div>
+    <h1>Bollettino Meteo <span>Omnia</span> · Plancia</h1>
+    <div class="stato-live"><span class="pallino-live" id="pallino-live"></span><span id="testo-live">connessione...</span><button class="bottone-refresh-header" id="btn-refresh-header" title="Aggiorna ora" aria-label="Aggiorna ora">↻</button></div>
   </div>
   <p class="sottotitolo" id="sottotitolo">Roseto degli Abruzzi · Pineto</p>
   <div class="barra-link">
-    <a href="osservazione-manuale.html">+ osservazione</a>
-    <a href="previsione-72h.html">📈 72h</a>
+    <a href="osservazione-manuale.html">+ osservazione manuale</a>
     <a href="calibrazione-meteo.html">📊 calibrazione</a>
     <a href="storico-meteo.html">📅 storico</a>
-    <a href="gestione-lidi.html">🏖️ lidi</a>
-    <a href="vista-adriatico.html">🌊 adriatico</a>
+    <a href="gestione-lidi.html">🏖️ gestione lidi</a>
+    <a href="vista-adriatico.html">🌊 vista adriatico</a>
     <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
   </div>
 </header>
 
-<div class="pannello-assistente" id="pannello-assistente">
-  <div class="assistente-intestazione" id="assistente-toggle">
-    <h2>💬 Chiedi alla plancia</h2>
-    <span class="freccia">▼</span>
-  </div>
-  <div class="assistente-corpo">
-    <div class="assistente-log" id="assistente-log"></div>
-    <div class="assistente-riga-input">
-      <textarea id="assistente-input" placeholder="Chiedi qualcosa sulle previsioni o segnala un'osservazione (es. 'hai segnato onda 0.2 ma il mare è mosso ed è 0,8')" rows="1"></textarea>
-      <button id="assistente-invia">Invia</button>
-    </div>
-    <p class="assistente-nota">Le osservazioni registrate qui finiscono nella stessa raccolta di "+ osservazione manuale" e vengono usate per la calibrazione.</p>
-  </div>
-</div>
-
 <main>
   <div id="contenuto">
-    <div class="messaggio-stato">Caricamento dati in corso...</div>
+    <div class="skeleton-griglia" aria-label="Caricamento dati in corso">
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+    </div>
   </div>
 </main>
 
@@ -904,6 +821,9 @@ function creaBussola(direzione, rischioGarbino, dimensione = 76) {
     <circle cx="${cx}" cy="${cy}" r="${raggio}" fill="none" stroke="#234653" stroke-width="1.5" />
     <path d="${settoreGarbino}" fill="#E0393E" opacity="0.55" />
     <text x="${cx}" y="9" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="middle">N</text>
+    <text x="${dimensione - 4}" y="${cy + 2.5}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="end">E</text>
+    <text x="${cx}" y="${dimensione - 3}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="middle">S</text>
+    <text x="4" y="${cy + 2.5}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="start">O</text>
     ${ago}
   </svg>`;
 }
@@ -1197,29 +1117,12 @@ function renderTutto() {
         <button class="radar-bottone" id="radar-next">›</button>
         <span class="radar-tempo" id="radar-tempo">caricamento radar...</span>
       </div>
-      <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
+      <details class="satellite-nota">
+        <summary>Radar: ultime 2 ore osservate, il resto è nowcast</summary>
+        <div class="dettaglio-nota">I fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</div>
+      </details>
       ${notaComunitaria()}
-    </div>
-    <div class="pannello-satellite">
-      <div class="sezione-titolo"><span>🛰️ Satellite Adriatico centrale</span></div>
-      <img
-        id="satellite-immagine"
-        class="satellite-immagine"
-        alt="Immagine satellite infrarosso — Adriatico centrale"
-        src="https://view.eumetsat.int/geoserver/wms?service=WMS&amp;version=1.3.0&amp;request=GetMap&amp;layers=mtg_fd:ir105_hrfi&amp;styles=mtg_fd:mtg_fd_ir105_hrfi_style_01&amp;crs=CRS:84&amp;bbox=12,40,18,45&amp;width=720&amp;height=600&amp;format=image/png"
-        onerror="this.onerror=null; this.src=this.src.replace('mtg_fd:mtg_fd_ir105_hrfi_style_01','mtg_fd:mtg_fd_ir105_hrfi_grayscale');"
-      >
-      <p class="satellite-nota">
-        Canale infrarosso (10.5 µm) del satellite Meteosat di nuova generazione — funziona sia di giorno sia di notte, a differenza dell'immagine "a colori naturali" che di notte è nera. Le nubi più bianche/luminose sono quelle più alte e fredde, tipicamente i temporali. Aggiornamento ogni 10 minuti.
-        <button id="satellite-aggiorna" style="margin-left:0.5rem; background:none; border:1px solid var(--line); color:var(--brass); border-radius:4px; padding:0.1rem 0.5rem; cursor:pointer; font-size:0.68rem;">↻ aggiorna</button>
-      </p>
     </div>`;
-
-  document.getElementById("satellite-aggiorna")?.addEventListener("click", () => {
-    const img = document.getElementById("satellite-immagine");
-    const base = img.src.split("&_=")[0];
-    img.src = `${base}&_=${Date.now()}`;
-  });
 
   inizializzaRadar();
 
@@ -1376,82 +1279,13 @@ function inizializzaRadar() {
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
+document.getElementById("btn-refresh-header").addEventListener("click", caricaDati);
 
 // --- AUTENTICAZIONE: il contenuto parte solo dopo il login ---------------
 const auth = getAuth(app);
 let intervalloAggiornamento = null;
 
 setPersistence(auth, browserLocalPersistence).catch(() => {});
-
-// --- ASSISTENTE PLANCIA: pannello domande/osservazioni in linguaggio libero
-const URL_ASSISTENTE_PLANCIA = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/assistentePlancia";
-
-const elToggleAssistente = document.getElementById("assistente-toggle");
-const elPannelloAssistente = document.getElementById("pannello-assistente");
-elToggleAssistente.addEventListener("click", () => elPannelloAssistente.classList.toggle("aperto"));
-
-const elLogAssistente = document.getElementById("assistente-log");
-const elInputAssistente = document.getElementById("assistente-input");
-const elInviaAssistente = document.getElementById("assistente-invia");
-
-let storicoChatAssistente = [];
-
-function aggiungiMessaggioAssistente(testo, classe) {
-  const div = document.createElement("div");
-  div.className = `assistente-msg ${classe}`;
-  div.textContent = testo;
-  elLogAssistente.appendChild(div);
-  elLogAssistente.scrollTop = elLogAssistente.scrollHeight;
-  return div;
-}
-
-elInputAssistente.addEventListener("input", () => {
-  elInputAssistente.style.height = "auto";
-  elInputAssistente.style.height = Math.min(elInputAssistente.scrollHeight, 120) + "px";
-});
-
-elInputAssistente.addEventListener("keydown", (evento) => {
-  if (evento.key === "Enter" && !evento.shiftKey) {
-    evento.preventDefault();
-    elInviaAssistente.click();
-  }
-});
-
-elInviaAssistente.addEventListener("click", async () => {
-  const testo = elInputAssistente.value.trim();
-  if (!testo || !auth.currentUser) return;
-
-  aggiungiMessaggioAssistente(testo, "utente");
-  elInputAssistente.value = "";
-  elInputAssistente.style.height = "auto";
-  elInviaAssistente.disabled = true;
-  const msgAttesaAssistente = aggiungiMessaggioAssistente("Un momento...", "bot");
-
-  try {
-    const idToken = await auth.currentUser.getIdToken();
-    const rispostaAssistente = await fetch(URL_ASSISTENTE_PLANCIA, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ messaggio: testo, storico: storicoChatAssistente }),
-    });
-    const datiAssistente = await rispostaAssistente.json();
-
-    if (!rispostaAssistente.ok) throw new Error(datiAssistente.errore || "Errore sconosciuto");
-
-    msgAttesaAssistente.textContent = datiAssistente.risposta;
-    if (datiAssistente.osservazioneRegistrata) msgAttesaAssistente.classList.add("registrato");
-    storicoChatAssistente = datiAssistente.storicoAggiornato || storicoChatAssistente;
-  } catch (errore) {
-    console.error(errore);
-    msgAttesaAssistente.textContent = "Errore nel contattare l'assistente. Riprova.";
-    msgAttesaAssistente.classList.add("errore");
-  } finally {
-    elInviaAssistente.disabled = false;
-  }
-});
-
-// --- SATELLITE: il listener di refresh è agganciato dentro renderTutto(),
-// perché il bottone viene ricreato ad ogni render (innerHTML sostituito).
 
 onAuthStateChanged(auth, (utente) => {
   const schermataLogin = document.getElementById("schermata-login");
