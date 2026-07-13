@@ -43,7 +43,7 @@
   .mono { font-family: 'IBM Plex Mono', monospace; }
 
   header {
-    padding: 1.5rem 1.25rem 1.25rem;
+    padding: 0.85rem 1rem 0.65rem;
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
@@ -51,14 +51,20 @@
     z-index: 20;
   }
 
-  h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
+  h1 { font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
   h1 span { color: var(--brass); }
-  .sottotitolo { color: var(--ink-muted); font-size: 0.8rem; margin: 0.35rem 0 0; }
+  .sottotitolo { color: var(--ink-muted); font-size: 0.7rem; margin: 0.2rem 0 0; }
 
-  .barra-link { display: flex; gap: 1.1rem; margin-top: 0.7rem; flex-wrap: wrap; }
+  .barra-link {
+    display: flex; gap: 0.5rem; margin-top: 0.55rem;
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .barra-link::-webkit-scrollbar { display: none; }
   .barra-link a {
-    color: var(--brass); font-size: 0.72rem; text-decoration: none;
-    padding: 0.3rem 0.6rem; border: 1px solid var(--brass-dim); border-radius: 20px; white-space: nowrap;
+    color: var(--brass); font-size: 0.68rem; text-decoration: none;
+    padding: 0.32rem 0.65rem; border: 1px solid var(--brass-dim); border-radius: 20px; white-space: nowrap;
+    flex-shrink: 0;
   }
   .barra-link a:active { background: var(--bg-panel-raised); }
 
@@ -137,17 +143,26 @@
     background: var(--bg-panel-raised); border-radius: 8px; margin-top: 0.6rem;
   }
 
-  .tabella-oraria-contenitore { max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .tabella-oraria-contenitore {
+    max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
   .riga-tabella-oraria {
-    display: grid; grid-template-columns: 1.1fr 1.7fr 0.8fr 1fr 0.7fr 0.7fr;
+    display: grid; grid-template-columns: 62px 132px 68px 88px 62px 52px;
     gap: 0.4rem; padding: 0.5rem 0.7rem; font-size: 0.76rem; align-items: center;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--line); min-width: max-content;
   }
   .riga-tabella-oraria:last-child { border-bottom: none; }
+  .riga-tabella-oraria > *:first-child {
+    position: sticky; left: 0; z-index: 1; margin-left: -0.7rem; padding-left: 0.7rem;
+  }
+  .riga-oraria-dato > *:first-child { background: var(--bg-panel); }
+  .riga-oraria-dato.riga-attiva > *:first-child { background: var(--brass-dim); }
   .intestazione-tabella-oraria {
     position: sticky; top: 0; background: var(--bg-panel-raised); color: var(--ink-faint);
-    font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; z-index: 1;
+    font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; z-index: 2;
   }
+  .intestazione-tabella-oraria > *:first-child { background: var(--bg-panel-raised); z-index: 3; }
   .riga-oraria-dato { cursor: pointer; background: var(--bg-panel); }
   .riga-oraria-dato:active { background: var(--bg-panel-raised); }
   .riga-oraria-dato.riga-attiva { background: var(--brass-dim); }
@@ -160,9 +175,12 @@
   .valore-severo-giallo { color: var(--flag-giallo); }
   .valore-severo-rosso { color: var(--flag-rosso); font-weight: 600; }
 
+  .suggerimento-scroll {
+    display: none; font-size: 0.66rem; color: var(--ink-faint); text-align: center;
+    padding: 0.3rem 0; letter-spacing: 0.02em;
+  }
   @media (max-width: 560px) {
-    .riga-tabella-oraria { grid-template-columns: 1fr 1.5fr 0.7fr; }
-    .riga-tabella-oraria > span:nth-child(4), .riga-tabella-oraria > span:nth-child(5), .riga-tabella-oraria > span:nth-child(6) { display: none; }
+    .suggerimento-scroll { display: block; }
   }
 
   .leaflet-popup-content-wrapper { background: var(--bg-panel-raised); color: var(--ink); border-radius: 10px; }
@@ -239,11 +257,11 @@
   <p class="sottotitolo">Roseto/Pineto in dettaglio + costa Adriatica estesa — entrambi su 72h</p>
   <div class="barra-link">
     <a href="plancia-meteo.html">← plancia</a>
-    <a href="osservazione-manuale.html">+ osservazione manuale</a>
+    <a href="osservazione-manuale.html">+ osservazione</a>
     <a href="calibrazione-meteo.html">📊 calibrazione</a>
     <a href="storico-meteo.html">📅 storico</a>
-    <a href="gestione-lidi.html">🏖️ gestione lidi</a>
-    <a href="vista-adriatico.html">🌊 vista adriatico</a>
+    <a href="gestione-lidi.html">🏖️ lidi</a>
+    <a href="vista-adriatico.html">🌊 adriatico</a>
   </div>
 </header>
 
@@ -278,6 +296,7 @@
   <div class="pannello">
     <p class="titolo-sezione">Previsione oraria scritta — Roseto degli Abruzzi</p>
     <p class="nota-disclaimer" id="nota-generato" style="margin-top:0;margin-bottom:0.6rem;">Consenso mediano di 5 modelli (ECMWF, GFS, ICON, Météo-France, MET Norway) su 72h.</p>
+    <p class="suggerimento-scroll">← scorri per vedere mare, pioggia, temp. →</p>
     <div class="tabella-oraria-contenitore" id="tabella-oraria-contenitore">
       <div class="riga-tabella-oraria intestazione-tabella-oraria">
         <span>Ora</span><span>Vento</span><span>Raffiche</span><span>Mare</span><span>Pioggia</span><span>Temp.</span>
