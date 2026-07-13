@@ -55,8 +55,26 @@
   h1 span { color: var(--brass); }
   .sottotitolo { color: var(--ink-muted); font-size: 0.7rem; margin: 0.2rem 0 0; }
 
+  .barra-link-contenitore {
+    position: relative;
+    margin-top: 0.55rem;
+  }
+
+  .barra-link-contenitore::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 2px;
+    width: 28px;
+    background: linear-gradient(to right, transparent, var(--bg-abyss));
+    pointer-events: none;
+  }
+
+  .barra-link-contenitore.fine-scroll::after {
+    display: none;
+  }
+
   .barra-link {
-    display: flex; gap: 0.5rem; margin-top: 0.55rem;
+    display: flex; gap: 0.5rem;
     flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
     scrollbar-width: none; padding-bottom: 2px;
   }
@@ -255,13 +273,15 @@
 <header>
   <h1>Omnia · Previsione <span>72h</span></h1>
   <p class="sottotitolo">Roseto/Pineto in dettaglio + costa Adriatica estesa — entrambi su 72h</p>
-  <div class="barra-link">
-    <a href="plancia-meteo.html">← plancia</a>
-    <a href="osservazione-manuale.html">+ osservazione</a>
-    <a href="calibrazione-meteo.html">📊 calibrazione</a>
-    <a href="storico-meteo.html">📅 storico</a>
-    <a href="gestione-lidi.html">🏖️ lidi</a>
-    <a href="vista-adriatico.html">🌊 adriatico</a>
+  <div class="barra-link-contenitore" id="barra-link-contenitore">
+    <div class="barra-link" id="barra-link">
+      <a href="plancia-meteo.html">← plancia</a>
+      <a href="vista-adriatico.html">🌊 adriatico</a>
+      <a href="storico-meteo.html">📅 storico</a>
+      <a href="calibrazione-meteo.html">📊 calibrazione</a>
+      <a href="osservazione-manuale.html">+ osservazione</a>
+      <a href="gestione-lidi.html">🏖️ lidi</a>
+    </div>
   </div>
 </header>
 
@@ -1248,6 +1268,20 @@ document.getElementById("login-bottone").addEventListener("click", async () => {
     errore.textContent = "Accesso non riuscito — controlla email e password.";
   }
 });
+
+// --- NAV SCORREVOLE: nasconde la sfumatura a destra a fine scroll ---------
+(() => {
+  const contenitore = document.getElementById("barra-link-contenitore");
+  const barra = document.getElementById("barra-link");
+  if (!contenitore || !barra) return;
+  const aggiornaFade = () => {
+    const fineRaggiunta = barra.scrollLeft + barra.clientWidth >= barra.scrollWidth - 2;
+    contenitore.classList.toggle("fine-scroll", fineRaggiunta);
+  };
+  barra.addEventListener("scroll", aggiornaFade);
+  window.addEventListener("resize", aggiornaFade);
+  aggiornaFade();
+})();
 </script>
 </body>
 </html>

@@ -18,11 +18,38 @@
     --ink: #E8F0EE;
     --ink-muted: #7FA0A8;
     --brass: #C99B4A;
+    --brass-dim: #8C6E3B;
     --line: #234653;
     --successo: #2F9E44;
     --errore: #E0393E;
   }
   * { box-sizing: border-box; }
+  .barra-link-contenitore {
+    position: relative;
+    margin-top: 0.55rem;
+  }
+  .barra-link-contenitore::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 2px;
+    width: 28px;
+    background: linear-gradient(to right, transparent, var(--bg-abyss));
+    pointer-events: none;
+  }
+  .barra-link-contenitore.fine-scroll::after {
+    display: none;
+  }
+  .barra-link {
+    display: flex; gap: 0.5rem;
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .barra-link::-webkit-scrollbar { display: none; }
+  .barra-link a {
+    color: var(--brass); font-size: 0.68rem; text-decoration: none; padding: 0.32rem 0.65rem;
+    border: 1px solid var(--brass-dim); border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+  }
+  .barra-link a:active { background: var(--bg-panel-raised); }
   body {
     margin: 0;
     background: var(--bg-abyss);
@@ -208,7 +235,17 @@
 
 <div id="contenuto-form" style="display:none;">
 <h1>Osservazione <span>manuale</span></h1>
-<p class="sottotitolo">Quello che vedi tu, sul posto — serve a tarare le previsioni dell'ensemble. <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
+<p class="sottotitolo">Quello che vedi tu, sul posto — serve a tarare le previsioni dell'ensemble.</p>
+<div class="barra-link-contenitore" id="barra-link-contenitore">
+  <div class="barra-link" id="barra-link">
+    <a href="plancia-meteo.html">← plancia</a>
+    <a href="vista-adriatico.html">🌊 adriatico</a>
+    <a href="previsione-72h.html">📈 72h</a>
+    <a href="storico-meteo.html">📅 storico</a>
+    <a href="calibrazione-meteo.html">📊 calibrazione</a>
+    <a href="gestione-lidi.html">🏖️ lidi</a>
+  </div>
+</div>
 
 <label for="punto">Punto</label>
 <select id="punto">
@@ -372,6 +409,20 @@ document.getElementById("invia").addEventListener("click", async () => {
     messaggio.classList.add("errore");
   }
 });
+
+// --- NAV SCORREVOLE: nasconde la sfumatura a destra a fine scroll ---------
+(() => {
+  const contenitore = document.getElementById("barra-link-contenitore");
+  const barra = document.getElementById("barra-link");
+  if (!contenitore || !barra) return;
+  const aggiornaFade = () => {
+    const fineRaggiunta = barra.scrollLeft + barra.clientWidth >= barra.scrollWidth - 2;
+    contenitore.classList.toggle("fine-scroll", fineRaggiunta);
+  };
+  barra.addEventListener("scroll", aggiornaFade);
+  window.addEventListener("resize", aggiornaFade);
+  aggiornaFade();
+})();
 </script>
 
 <script>

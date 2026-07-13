@@ -23,6 +23,32 @@
   header { padding: 1.5rem 1.25rem 1.25rem; border-bottom: 1px solid var(--line); }
   h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
   h1 span { color: var(--brass); }
+  .barra-link-contenitore {
+    position: relative;
+    margin-top: 0.55rem;
+  }
+  .barra-link-contenitore::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 2px;
+    width: 28px;
+    background: linear-gradient(to right, transparent, var(--bg-abyss));
+    pointer-events: none;
+  }
+  .barra-link-contenitore.fine-scroll::after {
+    display: none;
+  }
+  .barra-link {
+    display: flex; gap: 0.5rem;
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .barra-link::-webkit-scrollbar { display: none; }
+  .barra-link a {
+    color: var(--brass); font-size: 0.68rem; text-decoration: none; padding: 0.32rem 0.65rem;
+    border: 1px solid var(--brass-dim); border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+  }
+  .barra-link a:active { background: var(--bg-panel-raised); }
   p.sottotitolo { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--ink-muted); }
   a.link-plancia { color: var(--brass); font-size: 0.78rem; text-decoration: none; }
   main { max-width: 800px; margin: 0 auto; padding: 1.5rem 1.25rem 0; }
@@ -73,7 +99,17 @@
 
 <header>
   <h1>Gestione <span>Lidi</span></h1>
-  <p class="sottotitolo">Richieste di iscrizione agli alert meteo — <a class="link-plancia" href="plancia-meteo.html">← torna alla plancia</a></p>
+  <p class="sottotitolo">Richieste di iscrizione agli alert meteo</p>
+  <div class="barra-link-contenitore" id="barra-link-contenitore">
+    <div class="barra-link" id="barra-link">
+      <a href="plancia-meteo.html">← plancia</a>
+      <a href="vista-adriatico.html">🌊 adriatico</a>
+      <a href="previsione-72h.html">📈 72h</a>
+      <a href="storico-meteo.html">📅 storico</a>
+      <a href="calibrazione-meteo.html">📊 calibrazione</a>
+      <a href="osservazione-manuale.html">+ osservazione</a>
+    </div>
+  </div>
 </header>
 
 <main id="contenuto-principale" style="display:none;">
@@ -267,6 +303,20 @@ document.getElementById("login-bottone").addEventListener("click", async () => {
 document.getElementById("login-password").addEventListener("keydown", (evento) => {
   if (evento.key === "Enter") document.getElementById("login-bottone").click();
 });
+
+// --- NAV SCORREVOLE: nasconde la sfumatura a destra a fine scroll ---------
+(() => {
+  const contenitore = document.getElementById("barra-link-contenitore");
+  const barra = document.getElementById("barra-link");
+  if (!contenitore || !barra) return;
+  const aggiornaFade = () => {
+    const fineRaggiunta = barra.scrollLeft + barra.clientWidth >= barra.scrollWidth - 2;
+    contenitore.classList.toggle("fine-scroll", fineRaggiunta);
+  };
+  barra.addEventListener("scroll", aggiornaFade);
+  window.addEventListener("resize", aggiornaFade);
+  aggiornaFade();
+})();
 </script>
 
 <script>
