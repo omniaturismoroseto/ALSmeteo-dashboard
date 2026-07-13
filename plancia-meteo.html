@@ -109,10 +109,23 @@
     color: var(--ink-muted);
   }
 
+  .barra-link-contenitore {
+    position: relative;
+    margin-top: 0.55rem;
+  }
+
+  .barra-link-contenitore::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 2px;
+    width: 28px;
+    background: linear-gradient(to right, transparent, var(--bg-abyss));
+    pointer-events: none;
+  }
+
   .barra-link {
     display: flex;
     gap: 0.5rem;
-    margin-top: 0.55rem;
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -131,6 +144,10 @@
     border-radius: 20px;
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  .barra-link-contenitore.fine-scroll::after {
+    display: none;
   }
 
   .barra-link a:active {
@@ -232,6 +249,45 @@
     text-align: center;
     color: var(--ink-muted);
     font-size: 0.9rem;
+  }
+
+  /* --- SKELETON DI CARICAMENTO: ricalca la forma della griglia-punti così
+     la struttura della pagina appare subito, invece di uno schermo vuoto. --- */
+  .skeleton-griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.9rem;
+    margin-bottom: 2rem;
+  }
+
+  .skeleton-carta {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem;
+    height: 168px;
+  }
+
+  .skeleton-riga {
+    height: 0.75rem;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--bg-panel-raised) 25%, var(--bg-panel-raised-2) 50%, var(--bg-panel-raised) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-onda 1.6s ease-in-out infinite;
+    margin-bottom: 0.7rem;
+  }
+
+  .skeleton-riga.corta { width: 40%; }
+  .skeleton-riga.tonda { width: 76px; height: 76px; border-radius: 50%; margin: 0.3rem auto 1rem; }
+
+  @keyframes skeleton-onda {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-riga { animation: none; }
   }
 
   .griglia-punti {
@@ -521,6 +577,17 @@
     margin-top: 0.6rem;
   }
 
+  .satellite-nota summary {
+    cursor: pointer;
+    color: var(--brass);
+    list-style: none;
+  }
+
+  .satellite-nota summary::-webkit-details-marker { display: none; }
+  .satellite-nota summary::after { content: " ›"; }
+  .satellite-nota[open] summary::after { content: " ⌄"; }
+  .satellite-nota .dettaglio-nota { margin-top: 0.4rem; }
+
   .pannello-radar {
     background: var(--bg-panel);
     border: 1px solid var(--line);
@@ -764,14 +831,16 @@
     <div class="stato-live"><span class="pallino-live" id="pallino-live"></span><span id="testo-live">connessione...</span></div>
   </div>
   <p class="sottotitolo" id="sottotitolo">Roseto degli Abruzzi · Pineto</p>
-  <div class="barra-link">
-    <a href="osservazione-manuale.html">+ osservazione</a>
-    <a href="previsione-72h.html">📈 72h</a>
-    <a href="calibrazione-meteo.html">📊 calibrazione</a>
-    <a href="storico-meteo.html">📅 storico</a>
-    <a href="gestione-lidi.html">🏖️ lidi</a>
-    <a href="vista-adriatico.html">🌊 adriatico</a>
-    <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
+  <div class="barra-link-contenitore" id="barra-link-contenitore">
+    <div class="barra-link" id="barra-link">
+      <a href="osservazione-manuale.html">+ osservazione</a>
+      <a href="previsione-72h.html">📈 72h</a>
+      <a href="calibrazione-meteo.html">📊 calibrazione</a>
+      <a href="storico-meteo.html">📅 storico</a>
+      <a href="gestione-lidi.html">🏖️ lidi</a>
+      <a href="vista-adriatico.html">🌊 adriatico</a>
+      <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
+    </div>
   </div>
 </header>
 
@@ -792,7 +861,12 @@
 
 <main>
   <div id="contenuto">
-    <div class="messaggio-stato">Caricamento dati in corso...</div>
+    <div class="skeleton-griglia" aria-label="Caricamento dati in corso">
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
+    </div>
   </div>
 </main>
 
@@ -904,6 +978,9 @@ function creaBussola(direzione, rischioGarbino, dimensione = 76) {
     <circle cx="${cx}" cy="${cy}" r="${raggio}" fill="none" stroke="#234653" stroke-width="1.5" />
     <path d="${settoreGarbino}" fill="#E0393E" opacity="0.55" />
     <text x="${cx}" y="9" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="middle">N</text>
+    <text x="${dimensione - 4}" y="${cy + 2.5}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="end">E</text>
+    <text x="${cx}" y="${dimensione - 3}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="middle">S</text>
+    <text x="4" y="${cy + 2.5}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="start">O</text>
     ${ago}
   </svg>`;
 }
@@ -1197,7 +1274,10 @@ function renderTutto() {
         <button class="radar-bottone" id="radar-next">›</button>
         <span class="radar-tempo" id="radar-tempo">caricamento radar...</span>
       </div>
-      <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
+      <details class="satellite-nota">
+        <summary>Radar: ultime 2 ore osservate, il resto è nowcast</summary>
+        <div class="dettaglio-nota">I fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</div>
+      </details>
       ${notaComunitaria()}
     </div>
     <div class="pannello-satellite">
@@ -1376,6 +1456,21 @@ function inizializzaRadar() {
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
+
+// --- NAV SCORREVOLE: nasconde la sfumatura a destra quando non c'è più
+// nulla da scorrere, così non resta visibile "a vuoto" a fine lista.
+(() => {
+  const contenitore = document.getElementById("barra-link-contenitore");
+  const barra = document.getElementById("barra-link");
+  if (!contenitore || !barra) return;
+  const aggiornaFade = () => {
+    const fineRaggiunta = barra.scrollLeft + barra.clientWidth >= barra.scrollWidth - 2;
+    contenitore.classList.toggle("fine-scroll", fineRaggiunta);
+  };
+  barra.addEventListener("scroll", aggiornaFade);
+  window.addEventListener("resize", aggiornaFade);
+  aggiornaFade();
+})();
 
 // --- AUTENTICAZIONE: il contenuto parte solo dopo il login ---------------
 const auth = getAuth(app);
