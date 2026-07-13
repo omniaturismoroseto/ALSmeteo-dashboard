@@ -890,7 +890,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { initializeFirestore, doc, getDoc, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, collection, getDocs, query, limit, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // --- CONFIGURAZIONE FIREBASE -------------------------------------------
@@ -917,6 +917,7 @@ const COLORE_HEX = { verde: "#2F9E44", giallo: "#F0B429", rosso: "#E0393E" };
 
 let ultimoStato = null;
 let rilevazioniOggi = [];
+let giornoRilevazioniOggi = null; // per accorgersi del cambio di giornata e azzerare l'accumulo
 let letturaStazione = null;
 let riepilogoPubbliche = null;
 let mappaRadar = null;
@@ -1316,10 +1317,28 @@ function renderTutto() {
 async function caricaDati() {
   const oggi = dataOggiRoma();
 
+  // Cambio di giornata (o primo caricamento): si riparte da zero, non ha senso
+  // tenere in memoria le rilevazioni di ieri mescolate con quelle di oggi.
+  if (giornoRilevazioniOggi !== oggi) {
+    rilevazioniOggi = [];
+    giornoRilevazioniOggi = oggi;
+  }
+
+  // Dalla seconda chiamata in poi scarichiamo SOLO le rilevazioni più recenti
+  // dell'ultima che abbiamo già in memoria, invece di riscaricare tutta la
+  // giornata (che verso sera può superare i 100 documenti) ad ogni refresh.
+  const ultimaChiaveNota = rilevazioniOggi.length > 0
+    ? rilevazioniOggi[rilevazioniOggi.length - 1].rilevazione
+    : null;
+
+  const queryRiepilogoOre = ultimaChiaveNota
+    ? query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), where("rilevazione", ">", ultimaChiaveNota), limit(500))
+    : query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), limit(500));
+
   try {
     const [docOggi, rilevazioniSnap, docStazione, docPubbliche] = await Promise.all([
       getDoc(doc(db, "meteoGiornaliero", oggi)),
-      getDocs(query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), limit(500))),
+      getDocs(queryRiepilogoOre),
       getDoc(doc(db, "stazioneLocale", "roseto_nord")).catch(() => null),
       getDoc(doc(db, "stazioniPubblicheNetatmo", oggi)).catch(() => null),
     ]);
@@ -1329,10 +1348,10 @@ async function caricaDati() {
       uvMaxOggiGlobale = docOggi.data().uvMaxOggi ?? null;
     }
 
-    // Nessun orderBy (per evitare indici composti): leggiamo e ordiniamo lato client.
-    rilevazioniOggi = rilevazioniSnap.docs
-      .map((d) => d.data())
-      .sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
+    // Nessun orderBy composto (per evitare indici): leggiamo i soli nuovi
+    // arrivi e li accodiamo a quelli già in memoria, poi riordiniamo.
+    const rilevazioniNuove = rilevazioniSnap.docs.map((d) => d.data());
+    rilevazioniOggi = [...rilevazioniOggi, ...rilevazioniNuove].sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
 
     document.getElementById("testo-live").textContent = `aggiornato alle ${oraRoma()}`;
     document.getElementById("footer-info").textContent = `${rilevazioniOggi.length} rilevazioni oggi · dati Open-Meteo (ensemble 5 modelli)`;
