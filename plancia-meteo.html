@@ -1405,6 +1405,20 @@ function inizializzaRadar() {
     });
   });
 
+  // Anello aggiuntivo a 60km, SOLO nel quadrante Ovest->Nord (270°-360°,
+  // stessi bearing usati lato server in meteoHelpers.js) — da lì arrivano i
+  // fronti che scendono dal Nord Italia lungo l'Adriatico. Niente cerchio
+  // tratteggiato completo qui: disegnarlo a 360° darebbe l'impressione di
+  // una copertura che non esiste in questo anello.
+  [270, 292.5, 315, 337.5, 0].forEach((bearing) => {
+    const bearingRad = (bearing * Math.PI) / 180;
+    const dLat = (60 / R_KM) * Math.cos(bearingRad);
+    const dLon = (60 / (R_KM * Math.cos(latRad))) * Math.sin(bearingRad);
+    L.circleMarker([CENTRO_SENTINELLE[0] + dLat, CENTRO_SENTINELLE[1] + dLon], {
+      radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
+    }).addTo(mappaRadar).bindTooltip("Sentinella 60km", { permanent: false, direction: "top", className: "mono" });
+  });
+
   fetch("https://api.rainviewer.com/public/weather-maps.json")
     .then((r) => r.json())
     .then((dati) => {
