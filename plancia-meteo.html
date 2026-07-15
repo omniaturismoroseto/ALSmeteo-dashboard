@@ -800,6 +800,10 @@
       <textarea id="messaggio-lidi-input" placeholder="Scrivi qui il messaggio da mandare a tutti i lidi attivi sul bot..." rows="3"></textarea>
       <button id="messaggio-lidi-invia">Invia</button>
     </div>
+    <label class="assistente-nota" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+      <input type="checkbox" id="messaggio-lidi-allega-radar">
+      📡 Allega lo snapshot radar attuale (Roseto + sentinelle)
+    </label>
     <p class="assistente-nota" id="messaggio-lidi-stato">Va a tutti i lidi con abbonamento attivo, sul bot dedicato. Ti chiederà conferma prima di inviare davvero.</p>
   </div>
 </div>
@@ -1487,11 +1491,13 @@ elToggleMessaggioLidi.addEventListener("click", () => elPannelloMessaggioLidi.cl
 const elInputMessaggioLidi = document.getElementById("messaggio-lidi-input");
 const elInviaMessaggioLidi = document.getElementById("messaggio-lidi-invia");
 const elStatoMessaggioLidi = document.getElementById("messaggio-lidi-stato");
+const elAllegaRadarLidi = document.getElementById("messaggio-lidi-allega-radar");
 const TESTO_NOTA_MESSAGGIO_LIDI = elStatoMessaggioLidi.textContent;
 
 elInviaMessaggioLidi.addEventListener("click", async () => {
   const testo = elInputMessaggioLidi.value.trim();
   if (!testo || !auth.currentUser) return;
+  const allegaRadar = elAllegaRadarLidi.checked;
 
   elInviaMessaggioLidi.disabled = true;
   elStatoMessaggioLidi.textContent = "Controllo quanti lidi attivi ci sono...";
@@ -1503,7 +1509,7 @@ elInviaMessaggioLidi.addEventListener("click", async () => {
     const rispostaAnteprima = await fetch(URL_MESSAGGIO_LIDI, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ messaggio: testo, conferma: false }),
+      body: JSON.stringify({ messaggio: testo, conferma: false, allegaRadar }),
     });
     const datiAnteprima = await rispostaAnteprima.json();
     if (!rispostaAnteprima.ok) throw new Error(datiAnteprima.errore || "Errore sconosciuto");
@@ -1513,24 +1519,34 @@ elInviaMessaggioLidi.addEventListener("click", async () => {
       return;
     }
 
-    const confermato = confirm(`Confermi invio a ${datiAnteprima.numeroLidi} lidi?`);
+    const testoConferma = allegaRadar
+      ? `Confermi invio a ${datiAnteprima.numeroLidi} lidi, con snapshot radar allegato?`
+      : `Confermi invio a ${datiAnteprima.numeroLidi} lidi?`;
+    const confermato = confirm(testoConferma);
     if (!confermato) {
       elStatoMessaggioLidi.textContent = TESTO_NOTA_MESSAGGIO_LIDI;
       return;
     }
 
     // Passaggio 2: invio vero.
-    elStatoMessaggioLidi.textContent = "Invio in corso...";
+    elStatoMessaggioLidi.textContent = allegaRadar ? "Genero l'immagine radar e invio..." : "Invio in corso...";
     const rispostaInvio = await fetch(URL_MESSAGGIO_LIDI, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ messaggio: testo, conferma: true }),
+      body: JSON.stringify({ messaggio: testo, conferma: true, allegaRadar }),
     });
     const datiInvio = await rispostaInvio.json();
     if (!rispostaInvio.ok) throw new Error(datiInvio.errore || "Errore sconosciuto");
 
-    elStatoMessaggioLidi.textContent = `✅ Messaggio inviato a ${datiInvio.numeroLidi} lidi.`;
+    if (datiInvio.avviso) {
+      elStatoMessaggioLidi.textContent = `⚠️ Inviato a ${datiInvio.numeroLidi} lidi, ma ${datiInvio.avviso}`;
+    } else {
+      elStatoMessaggioLidi.textContent = datiInvio.conImmagine
+        ? `✅ Messaggio con immagine radar inviato a ${datiInvio.numeroLidi} lidi.`
+        : `✅ Messaggio inviato a ${datiInvio.numeroLidi} lidi.`;
+    }
     elInputMessaggioLidi.value = "";
+    elAllegaRadarLidi.checked = false;
   } catch (errore) {
     console.error(errore);
     elStatoMessaggioLidi.textContent = "Errore nell'invio. Riprova.";
