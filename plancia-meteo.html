@@ -109,23 +109,10 @@
     color: var(--ink-muted);
   }
 
-  .barra-link-contenitore {
-    position: relative;
-    margin-top: 0.55rem;
-  }
-
-  .barra-link-contenitore::after {
-    content: "";
-    position: absolute;
-    top: 0; right: 0; bottom: 2px;
-    width: 28px;
-    background: linear-gradient(to right, transparent, var(--bg-abyss));
-    pointer-events: none;
-  }
-
   .barra-link {
     display: flex;
     gap: 0.5rem;
+    margin-top: 0.55rem;
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -144,10 +131,6 @@
     border-radius: 20px;
     white-space: nowrap;
     flex-shrink: 0;
-  }
-
-  .barra-link-contenitore.fine-scroll::after {
-    display: none;
   }
 
   .barra-link a:active {
@@ -249,45 +232,6 @@
     text-align: center;
     color: var(--ink-muted);
     font-size: 0.9rem;
-  }
-
-  /* --- SKELETON DI CARICAMENTO: ricalca la forma della griglia-punti così
-     la struttura della pagina appare subito, invece di uno schermo vuoto. --- */
-  .skeleton-griglia {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 0.9rem;
-    margin-bottom: 2rem;
-  }
-
-  .skeleton-carta {
-    background: var(--bg-panel);
-    border: 1px solid var(--line);
-    border-left: 3px solid var(--line);
-    border-radius: 10px;
-    padding: 1rem;
-    height: 168px;
-  }
-
-  .skeleton-riga {
-    height: 0.75rem;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--bg-panel-raised) 25%, var(--bg-panel-raised-2) 50%, var(--bg-panel-raised) 75%);
-    background-size: 200% 100%;
-    animation: skeleton-onda 1.6s ease-in-out infinite;
-    margin-bottom: 0.7rem;
-  }
-
-  .skeleton-riga.corta { width: 40%; }
-  .skeleton-riga.tonda { width: 76px; height: 76px; border-radius: 50%; margin: 0.3rem auto 1rem; }
-
-  @keyframes skeleton-onda {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .skeleton-riga { animation: none; }
   }
 
   .griglia-punti {
@@ -577,17 +521,6 @@
     margin-top: 0.6rem;
   }
 
-  .satellite-nota summary {
-    cursor: pointer;
-    color: var(--brass);
-    list-style: none;
-  }
-
-  .satellite-nota summary::-webkit-details-marker { display: none; }
-  .satellite-nota summary::after { content: " ›"; }
-  .satellite-nota[open] summary::after { content: " ⌄"; }
-  .satellite-nota .dettaglio-nota { margin-top: 0.4rem; }
-
   .pannello-radar {
     background: var(--bg-panel);
     border: 1px solid var(--line);
@@ -831,16 +764,14 @@
     <div class="stato-live"><span class="pallino-live" id="pallino-live"></span><span id="testo-live">connessione...</span></div>
   </div>
   <p class="sottotitolo" id="sottotitolo">Roseto degli Abruzzi · Pineto</p>
-  <div class="barra-link-contenitore" id="barra-link-contenitore">
-    <div class="barra-link" id="barra-link">
-      <a href="vista-adriatico.html">🌊 adriatico</a>
-      <a href="previsione-72h.html">📈 72h</a>
-      <a href="storico-meteo.html">📅 storico</a>
-      <a href="calibrazione-meteo.html">📊 calibrazione</a>
-      <a href="osservazione-manuale.html">+ osservazione</a>
-      <a href="gestione-lidi.html">🏖️ lidi</a>
-      <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
-    </div>
+  <div class="barra-link">
+    <a href="osservazione-manuale.html">+ osservazione</a>
+    <a href="previsione-72h.html">📈 72h</a>
+    <a href="calibrazione-meteo.html">📊 calibrazione</a>
+    <a href="storico-meteo.html">📅 storico</a>
+    <a href="gestione-lidi.html">🏖️ lidi</a>
+    <a href="vista-adriatico.html">🌊 adriatico</a>
+    <button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
   </div>
 </header>
 
@@ -859,14 +790,23 @@
   </div>
 </div>
 
+<div class="pannello-assistente" id="pannello-messaggio-lidi">
+  <div class="assistente-intestazione" id="messaggio-lidi-toggle">
+    <h2>📣 Messaggio ai lidi</h2>
+    <span class="freccia">▼</span>
+  </div>
+  <div class="assistente-corpo">
+    <div class="assistente-riga-input">
+      <textarea id="messaggio-lidi-input" placeholder="Scrivi qui il messaggio da mandare a tutti i lidi attivi sul bot..." rows="3"></textarea>
+      <button id="messaggio-lidi-invia">Invia</button>
+    </div>
+    <p class="assistente-nota" id="messaggio-lidi-stato">Va a tutti i lidi con abbonamento attivo, sul bot dedicato. Ti chiederà conferma prima di inviare davvero.</p>
+  </div>
+</div>
+
 <main>
   <div id="contenuto">
-    <div class="skeleton-griglia" aria-label="Caricamento dati in corso">
-      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
-      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
-      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
-      <div class="skeleton-carta"><div class="skeleton-riga corta"></div><div class="skeleton-riga tonda"></div><div class="skeleton-riga"></div></div>
-    </div>
+    <div class="messaggio-stato">Caricamento dati in corso...</div>
   </div>
 </main>
 
@@ -890,7 +830,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { initializeFirestore, doc, getDoc, collection, getDocs, query, limit, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // --- CONFIGURAZIONE FIREBASE -------------------------------------------
@@ -917,7 +857,6 @@ const COLORE_HEX = { verde: "#2F9E44", giallo: "#F0B429", rosso: "#E0393E" };
 
 let ultimoStato = null;
 let rilevazioniOggi = [];
-let giornoRilevazioniOggi = null; // per accorgersi del cambio di giornata e azzerare l'accumulo
 let letturaStazione = null;
 let riepilogoPubbliche = null;
 let mappaRadar = null;
@@ -979,9 +918,6 @@ function creaBussola(direzione, rischioGarbino, dimensione = 76) {
     <circle cx="${cx}" cy="${cy}" r="${raggio}" fill="none" stroke="#234653" stroke-width="1.5" />
     <path d="${settoreGarbino}" fill="#E0393E" opacity="0.55" />
     <text x="${cx}" y="9" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="middle">N</text>
-    <text x="${dimensione - 4}" y="${cy + 2.5}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="end">E</text>
-    <text x="${cx}" y="${dimensione - 3}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="middle">S</text>
-    <text x="4" y="${cy + 2.5}" fill="#7FA0A8" font-size="7" font-family="IBM Plex Mono" text-anchor="start">O</text>
     ${ago}
   </svg>`;
 }
@@ -1275,10 +1211,7 @@ function renderTutto() {
         <button class="radar-bottone" id="radar-next">›</button>
         <span class="radar-tempo" id="radar-tempo">caricamento radar...</span>
       </div>
-      <details class="satellite-nota">
-        <summary>Radar: ultime 2 ore osservate, il resto è nowcast</summary>
-        <div class="dettaglio-nota">I fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</div>
-      </details>
+      <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
     </div>
     <div class="pannello-satellite">
@@ -1317,28 +1250,10 @@ function renderTutto() {
 async function caricaDati() {
   const oggi = dataOggiRoma();
 
-  // Cambio di giornata (o primo caricamento): si riparte da zero, non ha senso
-  // tenere in memoria le rilevazioni di ieri mescolate con quelle di oggi.
-  if (giornoRilevazioniOggi !== oggi) {
-    rilevazioniOggi = [];
-    giornoRilevazioniOggi = oggi;
-  }
-
-  // Dalla seconda chiamata in poi scarichiamo SOLO le rilevazioni più recenti
-  // dell'ultima che abbiamo già in memoria, invece di riscaricare tutta la
-  // giornata (che verso sera può superare i 100 documenti) ad ogni refresh.
-  const ultimaChiaveNota = rilevazioniOggi.length > 0
-    ? rilevazioniOggi[rilevazioniOggi.length - 1].rilevazione
-    : null;
-
-  const queryRiepilogoOre = ultimaChiaveNota
-    ? query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), where("rilevazione", ">", ultimaChiaveNota), limit(500))
-    : query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), limit(500));
-
   try {
     const [docOggi, rilevazioniSnap, docStazione, docPubbliche] = await Promise.all([
       getDoc(doc(db, "meteoGiornaliero", oggi)),
-      getDocs(queryRiepilogoOre),
+      getDocs(query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), limit(500))),
       getDoc(doc(db, "stazioneLocale", "roseto_nord")).catch(() => null),
       getDoc(doc(db, "stazioniPubblicheNetatmo", oggi)).catch(() => null),
     ]);
@@ -1348,10 +1263,10 @@ async function caricaDati() {
       uvMaxOggiGlobale = docOggi.data().uvMaxOggi ?? null;
     }
 
-    // Nessun orderBy composto (per evitare indici): leggiamo i soli nuovi
-    // arrivi e li accodiamo a quelli già in memoria, poi riordiniamo.
-    const rilevazioniNuove = rilevazioniSnap.docs.map((d) => d.data());
-    rilevazioniOggi = [...rilevazioniOggi, ...rilevazioniNuove].sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
+    // Nessun orderBy (per evitare indici composti): leggiamo e ordiniamo lato client.
+    rilevazioniOggi = rilevazioniSnap.docs
+      .map((d) => d.data())
+      .sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
 
     document.getElementById("testo-live").textContent = `aggiornato alle ${oraRoma()}`;
     document.getElementById("footer-info").textContent = `${rilevazioniOggi.length} rilevazioni oggi · dati Open-Meteo (ensemble 5 modelli)`;
@@ -1476,21 +1391,6 @@ function inizializzaRadar() {
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
 
-// --- NAV SCORREVOLE: nasconde la sfumatura a destra quando non c'è più
-// nulla da scorrere, così non resta visibile "a vuoto" a fine lista.
-(() => {
-  const contenitore = document.getElementById("barra-link-contenitore");
-  const barra = document.getElementById("barra-link");
-  if (!contenitore || !barra) return;
-  const aggiornaFade = () => {
-    const fineRaggiunta = barra.scrollLeft + barra.clientWidth >= barra.scrollWidth - 2;
-    contenitore.classList.toggle("fine-scroll", fineRaggiunta);
-  };
-  barra.addEventListener("scroll", aggiornaFade);
-  window.addEventListener("resize", aggiornaFade);
-  aggiornaFade();
-})();
-
 // --- AUTENTICAZIONE: il contenuto parte solo dopo il login ---------------
 const auth = getAuth(app);
 let intervalloAggiornamento = null;
@@ -1555,12 +1455,87 @@ elInviaAssistente.addEventListener("click", async () => {
     msgAttesaAssistente.textContent = datiAssistente.risposta;
     if (datiAssistente.osservazioneRegistrata) msgAttesaAssistente.classList.add("registrato");
     storicoChatAssistente = datiAssistente.storicoAggiornato || storicoChatAssistente;
+
+    // Se l'assistente ha preparato una bozza per i lidi, la mettiamo nella
+    // casella modificabile del pannello dedicato (nessuna chiamata AI in più
+    // per correggerla — si modifica lì a mano, gratis).
+    if (datiAssistente.messaggioLidiProposto && datiAssistente.messaggioLidiProposto.testo) {
+      elInputMessaggioLidi.value = datiAssistente.messaggioLidiProposto.testo;
+      elPannelloMessaggioLidi.classList.add("aperto");
+      const numeroLidi = datiAssistente.messaggioLidiProposto.numeroLidiAttivi;
+      elStatoMessaggioLidi.textContent = `Bozza pronta da rivedere/correggere qui sotto — ${numeroLidi} lid${numeroLidi === 1 ? "o" : "i"} attiv${numeroLidi === 1 ? "o" : "i"} al momento.`;
+      elPannelloMessaggioLidi.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   } catch (errore) {
     console.error(errore);
     msgAttesaAssistente.textContent = "Errore nel contattare l'assistente. Riprova.";
     msgAttesaAssistente.classList.add("errore");
   } finally {
     elInviaAssistente.disabled = false;
+  }
+});
+
+// --- MESSAGGIO AI LIDI: pannello per mandare un testo libero a tutti i lidi
+// attivi sul bot dedicato. Prima chiede un'anteprima (quanti lidi attivi ci
+// sono, senza inviare nulla), poi con la conferma dell'utente invia davvero.
+const URL_MESSAGGIO_LIDI = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/inviaMessaggioLidi";
+
+const elToggleMessaggioLidi = document.getElementById("messaggio-lidi-toggle");
+const elPannelloMessaggioLidi = document.getElementById("pannello-messaggio-lidi");
+elToggleMessaggioLidi.addEventListener("click", () => elPannelloMessaggioLidi.classList.toggle("aperto"));
+
+const elInputMessaggioLidi = document.getElementById("messaggio-lidi-input");
+const elInviaMessaggioLidi = document.getElementById("messaggio-lidi-invia");
+const elStatoMessaggioLidi = document.getElementById("messaggio-lidi-stato");
+const TESTO_NOTA_MESSAGGIO_LIDI = elStatoMessaggioLidi.textContent;
+
+elInviaMessaggioLidi.addEventListener("click", async () => {
+  const testo = elInputMessaggioLidi.value.trim();
+  if (!testo || !auth.currentUser) return;
+
+  elInviaMessaggioLidi.disabled = true;
+  elStatoMessaggioLidi.textContent = "Controllo quanti lidi attivi ci sono...";
+
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+
+    // Passaggio 1: anteprima, nessun invio ancora.
+    const rispostaAnteprima = await fetch(URL_MESSAGGIO_LIDI, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ messaggio: testo, conferma: false }),
+    });
+    const datiAnteprima = await rispostaAnteprima.json();
+    if (!rispostaAnteprima.ok) throw new Error(datiAnteprima.errore || "Errore sconosciuto");
+
+    if (datiAnteprima.numeroLidi === 0) {
+      elStatoMessaggioLidi.textContent = "Nessun lido attivo al momento — messaggio non inviato.";
+      return;
+    }
+
+    const confermato = confirm(`Confermi invio a ${datiAnteprima.numeroLidi} lidi?`);
+    if (!confermato) {
+      elStatoMessaggioLidi.textContent = TESTO_NOTA_MESSAGGIO_LIDI;
+      return;
+    }
+
+    // Passaggio 2: invio vero.
+    elStatoMessaggioLidi.textContent = "Invio in corso...";
+    const rispostaInvio = await fetch(URL_MESSAGGIO_LIDI, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ messaggio: testo, conferma: true }),
+    });
+    const datiInvio = await rispostaInvio.json();
+    if (!rispostaInvio.ok) throw new Error(datiInvio.errore || "Errore sconosciuto");
+
+    elStatoMessaggioLidi.textContent = `✅ Messaggio inviato a ${datiInvio.numeroLidi} lidi.`;
+    elInputMessaggioLidi.value = "";
+  } catch (errore) {
+    console.error(errore);
+    elStatoMessaggioLidi.textContent = "Errore nell'invio. Riprova.";
+  } finally {
+    elInviaMessaggioLidi.disabled = false;
   }
 });
 
