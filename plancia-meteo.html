@@ -565,6 +565,29 @@
 
   .radar-tempo .futuro { color: var(--brass); }
 
+  .legenda-intensita-pioggia {
+    margin-top: 0.8rem;
+  }
+
+  .barra-legenda-pioggia {
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(to right,
+      #88ddee 0%, #00a3e0 11.1%, #0077aa 22.2%, #005588 33.3%,
+      #ffee00 44.4%, #ffaa00 55.6%, #ff4400 66.7%, #c10000 77.8%,
+      #ffaaff 88.9%, #ff77ff 100%);
+    border: 1px solid var(--line);
+  }
+
+  .etichette-legenda-pioggia {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--ink-muted);
+    margin-top: 0.3rem;
+  }
+
   .livello-mappa-scuro {
     filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
   }
@@ -1214,6 +1237,15 @@ function renderTutto() {
         <button class="radar-bottone" id="radar-play">▶</button>
         <button class="radar-bottone" id="radar-next">›</button>
         <span class="radar-tempo" id="radar-tempo">caricamento radar...</span>
+      </div>
+      <div class="legenda-intensita-pioggia">
+        <div class="barra-legenda-pioggia"></div>
+        <div class="etichette-legenda-pioggia">
+          <span>Leggero</span>
+          <span>Moderato</span>
+          <span>Forte</span>
+          <span>Tormenta</span>
+        </div>
       </div>
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
