@@ -1172,7 +1172,7 @@ function disegnaGrafico(puntoId) {
   });
 }
 
-function renderBannerEventi(eventi, tendenzeMare, fronti) {
+function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno) {
   let righe = "";
   if (eventi && eventi.pioggiaInArrivo) {
     righe += `<div class="banner-riga">🌧 Pioggia in arrivo — probabilità fino al ${eventi.probabilitaPioggiaMaxPerc}% nelle prossime ore.</div>`;
@@ -1193,6 +1193,9 @@ function renderBannerEventi(eventi, tendenzeMare, fronti) {
     for (const f of fronti) {
       righe += `<div class="banner-riga">🌩️ Nuvolosità in avvicinamento da ${f.direzione} (${f.nuvolositaPerc ?? "n/d"}% stimato, vento allineato) — previsione, non pioggia confermata: verifica sul radar sopra.</div>`;
     }
+  }
+  if (confrontoEsterno && confrontoEsterno.discordanza) {
+    righe += `<div class="banner-riga">⚖️ Disaccordo tra fonti: Omnia stima ${confrontoEsterno.probabilitaOmniaPerc}% di probabilità pioggia nelle prossime ore, ${confrontoEsterno.fonte} stima ${confrontoEsterno.probabilitaEsternaPerc}% — vale la pena tenere d'occhio il radar qui sotto.</div>`;
   }
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
 }
@@ -1220,7 +1223,7 @@ function renderTutto() {
   }
 
   contenuto.innerHTML =
-    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti) +
+    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti, ultimoStato.confrontoEsterno) +
     renderPannelloUV(ultimoStato, uvMaxOggiGlobale) +
     renderPunti(ultimoStato) +
     renderSelettoreEGrafico(ultimoStato) +
