@@ -1487,7 +1487,7 @@ function inizializzaRadar() {
 // renderizzata dal loro servizio WMS ufficiale (stesso motore grafico del
 // sito radar.protezionecivile.it), sovrapposta alla stessa base OSM usata
 // sopra per il radar RainViewer, per poterle confrontare a colpo d'occhio.
-function inizializzaRadarDpc() {
+async function inizializzaRadarDpc() {
   if (mappaRadarDpc) { mappaRadarDpc.remove(); mappaRadarDpc = null; }
 
   const contenitore = document.getElementById("mappa-radar-dpc");
@@ -1535,18 +1535,32 @@ function inizializzaRadarDpc() {
     }).addTo(mappaRadarDpc).bindTooltip("Sentinella 60km", { permanent: false, direction: "top", className: "mono" });
   });
 
-  // Nessuna chiamata a findLastProductByType qui: costruiamo semplicemente
-  // gli ultimi 60 minuti a passi di 5 minuti (cadenza del prodotto VMI),
-  // arrotondando "adesso" al multiplo di 5 minuti precedente. Se uno
-  // specifico fotogramma non esiste davvero lato server, il livello WMS
-  // per quel time risulterà semplicemente vuoto/trasparente.
-  const adessoArrotondato = new Date();
-  adessoArrotondato.setSeconds(0, 0);
-  adessoArrotondato.setMinutes(Math.floor(adessoArrotondato.getMinutes() / 5) * 5);
+  // Costruiamo gli ultimi 60 minuti a passi di 5 minuti (cadenza del
+  // prodotto VMI), MA ancorati all'ultimo orario realmente disponibile
+  // secondo il servizio Radar-DPC stesso — non ha senso indovinare
+  // arrotondando l'orologio locale, perché il dato reale arriva quasi
+  // sempre con qualche minuto di ritardo (anche 8-10 minuti) e chiedere
+  // un orario che non esiste ancora restituisce un'immagine vuota.
+  const URL_ULTIMO_TIMESTAMP_DPC = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/radarDpcUltimoTimestamp";
+  let ultimoOsservatoDpc;
+  try {
+    const rispostaTs = await fetch(URL_ULTIMO_TIMESTAMP_DPC);
+    if (!rispostaTs.ok) throw new Error(`risposta ${rispostaTs.status}`);
+    const datiTs = await rispostaTs.json();
+    ultimoOsservatoDpc = new Date(datiTs.timestampMs);
+  } catch (err) {
+    console.error("radar-dpc: impossibile ottenere l'ultimo orario reale, uso una stima approssimata:", err);
+    // Fallback prudente: meglio un orario probabilmente sbagliato di
+    // qualche minuto che un pannello completamente vuoto senza spiegazione.
+    ultimoOsservatoDpc = new Date();
+    ultimoOsservatoDpc.setSeconds(0, 0);
+    ultimoOsservatoDpc.setMinutes(Math.floor(ultimoOsservatoDpc.getMinutes() / 5) * 5 - 10);
+  }
+
   const NUMERO_FRAME_DPC = 12; // 60 minuti / 5 minuti
   frameOrariDpc = [];
   for (let i = NUMERO_FRAME_DPC - 1; i >= 0; i--) {
-    frameOrariDpc.push(new Date(adessoArrotondato.getTime() - i * 5 * 60000));
+    frameOrariDpc.push(new Date(ultimoOsservatoDpc.getTime() - i * 5 * 60000));
   }
   mostraFrameRadarDpc(frameOrariDpc.length - 1);
 
