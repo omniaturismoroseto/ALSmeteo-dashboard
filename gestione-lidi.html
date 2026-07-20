@@ -74,6 +74,7 @@
   .btn-approva { background: var(--flag-verde); color: #0A1C24; }
   .btn-rifiuta, .btn-revoca { background: var(--flag-rosso); color: #fff; }
   .btn-modifica { background: var(--bg-panel-raised); color: var(--ink); border: 1px solid var(--line); }
+  .btn-messaggio { background: var(--brass); color: #1A1206; }
   button.btn-azione:disabled { opacity: 0.5; cursor: default; }
 
   .schermata-login {
@@ -157,12 +158,12 @@ const auth = getAuth(app);
 
 const URL_FUNZIONE = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/gestisciRichiestaLido";
 
-async function chiamaGestioneLido(chatId, azione, nomeLido) {
+async function chiamaGestioneLido(chatId, azione, nomeLido, testo) {
   const idToken = await auth.currentUser.getIdToken();
   const risposta = await fetch(URL_FUNZIONE, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ chatId, azione, nomeLido }),
+    body: JSON.stringify({ chatId, azione, nomeLido, testo }),
   });
   if (!risposta.ok) {
     const dati = await risposta.json().catch(() => ({}));
@@ -232,6 +233,7 @@ async function caricaAttivi() {
           <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.approvatoIl ? " · attivo dal " + new Date(dati.approvatoIl).toLocaleDateString("it-IT") : ""}</div>
         </div>
         <div class="azioni-lido">
+          <button class="btn-azione btn-messaggio" data-azione="messaggio">✉️ Messaggio</button>
           <button class="btn-azione btn-modifica" data-azione="rinomina">Modifica nome</button>
           <button class="btn-azione btn-revoca" data-azione="revoca">Revoca</button>
         </div>
@@ -243,6 +245,26 @@ async function caricaAttivi() {
       const voce = bottone.closest(".voce-lido");
       const chatId = voce.getAttribute("data-chat-id");
       const azione = bottone.getAttribute("data-azione");
+
+      if (azione === "messaggio") {
+        const nomeLido = voce.querySelector(".nome-lido").textContent;
+        const testo = prompt(`Messaggio da inviare a "${nomeLido}" (va sul canale Telegram lidi, si può usare <b>grassetto</b>/<i>corsivo</i> in HTML):`);
+        if (testo === null) return; // annullato
+        const testoPulito = testo.trim();
+        if (!testoPulito) return;
+        if (!confirm(`Confermi l'invio a "${nomeLido}"?\n\n${testoPulito}`)) return;
+
+        bottone.disabled = true;
+        try {
+          await chiamaGestioneLido(chatId, "messaggio", null, testoPulito);
+          alert("Messaggio inviato.");
+        } catch (errore) {
+          alert(`Errore: ${errore.message}`);
+        } finally {
+          bottone.disabled = false;
+        }
+        return;
+      }
 
       if (azione === "rinomina") {
         const nomeAttuale = voce.querySelector(".nome-lido").textContent;
