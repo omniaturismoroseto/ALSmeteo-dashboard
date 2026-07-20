@@ -537,6 +537,14 @@
     background: #0d222b;
   }
 
+  #mappa-radar-dpc {
+    width: 100%;
+    height: 320px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #0d222b;
+  }
+
   .radar-controlli {
     display: flex;
     align-items: center;
@@ -899,6 +907,7 @@ let framesRadar = [];
 let numeroFrameNowcastRadar = 0;
 let posizioneAnimazioneRadar = 0;
 let hostRadar = "";
+let mappaRadarDpc = null;
 let puntoSelezionato = "roseto_nord";
 let grafico = null;
 let uvMaxOggiGlobale = null;
@@ -1259,6 +1268,13 @@ function renderTutto() {
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
     </div>
+    <div class="pannello-radar">
+      <div class="sezione-titolo"><span>📡 Radar Protezione Civile (prototipo di test)</span></div>
+      <div style="position:relative;">
+        <div id="mappa-radar-dpc"></div>
+      </div>
+      <p class="satellite-nota">Radar-DPC (Dipartimento Protezione Civile — prodotto VMI, licenza CC-BY-SA): mappa già renderizzata dal servizio ufficiale, mostrata qui solo a scopo di confronto con il radar RainViewer sopra. Non alimenta ancora nessun alert automatico ai lidi — al momento invia solo notifiche di prova a Marco e Dante per valutarne l'affidabilità.</p>
+    </div>
     <div class="pannello-satellite">
       <div class="sezione-titolo"><span>🛰️ Satellite Adriatico centrale</span></div>
       <img
@@ -1281,6 +1297,7 @@ function renderTutto() {
   });
 
   inizializzaRadar();
+  inizializzaRadarDpc();
 
   document.querySelectorAll("[data-punto]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -1446,6 +1463,34 @@ function inizializzaRadar() {
   document.getElementById("radar-play")?.addEventListener("click", alternaAnimazioneRadar);
   document.getElementById("radar-prev")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(-1); });
   document.getElementById("radar-next")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(1); });
+}
+
+// --- RADAR PROTEZIONE CIVILE (prototipo di test, sola visualizzazione) ----
+// Non elaboriamo noi il dato: mostriamo direttamente la mappa già
+// renderizzata dal loro servizio WMS ufficiale (stesso motore grafico del
+// sito radar.protezionecivile.it), sovrapposta alla stessa base OSM usata
+// sopra per il radar RainViewer, per poterle confrontare a colpo d'occhio.
+function inizializzaRadarDpc() {
+  if (mappaRadarDpc) { mappaRadarDpc.remove(); mappaRadarDpc = null; }
+
+  const contenitore = document.getElementById("mappa-radar-dpc");
+  if (!contenitore || typeof L === "undefined") return;
+
+  mappaRadarDpc = L.map("mappa-radar-dpc", { zoomControl: false, attributionControl: false, maxZoom: 9, minZoom: 6 }).setView([42.75, 13.8], 7);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 9, className: "livello-mappa-scuro" }).addTo(mappaRadarDpc);
+  L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadarDpc).bindTooltip("Roseto/Pineto", { permanent: false, direction: "top", className: "mono" });
+
+  // Nessun parametro "time": secondo la documentazione Radar-DPC, se
+  // omesso il servizio risponde sempre con il campione più recente
+  // disponibile (VMI, aggiornato ogni 5 minuti).
+  L.tileLayer.wms("https://radar-geowebcache.protezionecivile.it/service/wms", {
+    layers: "radar:vmi",
+    format: "image/png",
+    transparent: true,
+    version: "1.1.1",
+    opacity: 0.75,
+    zIndex: 5,
+  }).addTo(mappaRadarDpc);
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
