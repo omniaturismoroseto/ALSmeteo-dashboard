@@ -908,6 +908,10 @@ let numeroFrameNowcastRadar = 0;
 let posizioneAnimazioneRadar = 0;
 let hostRadar = "";
 let mappaRadarDpc = null;
+let livelloRadarDpcAttuale = null;
+let timerAnimazioneRadarDpc = null;
+let frameOrariDpc = [];
+let posizioneAnimazioneRadarDpc = 0;
 let puntoSelezionato = "roseto_nord";
 let grafico = null;
 let uvMaxOggiGlobale = null;
@@ -1273,6 +1277,19 @@ function renderTutto() {
       <div style="position:relative;">
         <div id="mappa-radar-dpc"></div>
       </div>
+      <div class="radar-controlli">
+        <button class="radar-bottone" id="radar-dpc-prev">‹</button>
+        <button class="radar-bottone" id="radar-dpc-play">▶</button>
+        <button class="radar-bottone" id="radar-dpc-next">›</button>
+        <span class="radar-tempo" id="radar-dpc-tempo">caricamento radar...</span>
+      </div>
+      <img
+        id="radar-dpc-legenda"
+        alt="Legenda intensità — Radar-DPC (VMI)"
+        style="max-width:100%; height:auto; background:#0d222b; border-radius:4px; padding:0.4rem; margin-top:0.6rem; display:block;"
+        src="https://radar-geowebcache.protezionecivile.it/service/wms?REQUEST=GetLegendGraphic&VERSION=1.1.1&FORMAT=image/png&LAYER=radar:vmi"
+        onerror="this.style.display='none';"
+      >
       <p class="satellite-nota">Radar-DPC (Dipartimento Protezione Civile — prodotto VMI, licenza CC-BY-SA): mappa già renderizzata dal servizio ufficiale, mostrata qui solo a scopo di confronto con il radar RainViewer sopra. Non alimenta ancora nessun alert automatico ai lidi — al momento invia solo notifiche di prova a Marco e Dante per valutarne l'affidabilità.</p>
     </div>
     <div class="pannello-satellite">
@@ -1480,17 +1497,113 @@ function inizializzaRadarDpc() {
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 9, className: "livello-mappa-scuro" }).addTo(mappaRadarDpc);
   L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadarDpc).bindTooltip("Roseto/Pineto", { permanent: false, direction: "top", className: "mono" });
 
-  // Nessun parametro "time": secondo la documentazione Radar-DPC, se
-  // omesso il servizio risponde sempre con il campione più recente
-  // disponibile (VMI, aggiornato ogni 5 minuti).
-  L.tileLayer.wms("https://radar-geowebcache.protezionecivile.it/service/wms", {
+  // Stesse sentinelle (20km/40km + anello 60km NO-N) già disegnate sulla
+  // mappa RainViewer sopra — stessi valori usati lato server in
+  // meteoHelpers.js, ripetuti qui per coerenza visiva tra le due mappe.
+  const CENTRO_SENTINELLE_DPC = [42.68, 14.0];
+  const R_KM_DPC = 111.32;
+  const latRadDpc = (CENTRO_SENTINELLE_DPC[0] * Math.PI) / 180;
+
+  [20000, 40000].forEach((raggioM) => {
+    L.circle(CENTRO_SENTINELLE_DPC, {
+      radius: raggioM,
+      color: "#C99B4A",
+      weight: 1.5,
+      fillColor: "#C99B4A",
+      fillOpacity: 0.04,
+      dashArray: "4 4",
+    }).addTo(mappaRadarDpc);
+  });
+
+  [20, 40].forEach((raggioKm) => {
+    [0, 45, 90, 135, 180, 225, 270, 315].forEach((bearing) => {
+      const bearingRad = (bearing * Math.PI) / 180;
+      const dLat = (raggioKm / R_KM_DPC) * Math.cos(bearingRad);
+      const dLon = (raggioKm / (R_KM_DPC * Math.cos(latRadDpc))) * Math.sin(bearingRad);
+      L.circleMarker([CENTRO_SENTINELLE_DPC[0] + dLat, CENTRO_SENTINELLE_DPC[1] + dLon], {
+        radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
+      }).addTo(mappaRadarDpc);
+    });
+  });
+
+  [270, 292.5, 315, 337.5, 0].forEach((bearing) => {
+    const bearingRad = (bearing * Math.PI) / 180;
+    const dLat = (60 / R_KM_DPC) * Math.cos(bearingRad);
+    const dLon = (60 / (R_KM_DPC * Math.cos(latRadDpc))) * Math.sin(bearingRad);
+    L.circleMarker([CENTRO_SENTINELLE_DPC[0] + dLat, CENTRO_SENTINELLE_DPC[1] + dLon], {
+      radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
+    }).addTo(mappaRadarDpc).bindTooltip("Sentinella 60km", { permanent: false, direction: "top", className: "mono" });
+  });
+
+  // Nessuna chiamata a findLastProductByType qui: costruiamo semplicemente
+  // gli ultimi 60 minuti a passi di 5 minuti (cadenza del prodotto VMI),
+  // arrotondando "adesso" al multiplo di 5 minuti precedente. Se uno
+  // specifico fotogramma non esiste davvero lato server, il livello WMS
+  // per quel time risulterà semplicemente vuoto/trasparente.
+  const adessoArrotondato = new Date();
+  adessoArrotondato.setSeconds(0, 0);
+  adessoArrotondato.setMinutes(Math.floor(adessoArrotondato.getMinutes() / 5) * 5);
+  const NUMERO_FRAME_DPC = 12; // 60 minuti / 5 minuti
+  frameOrariDpc = [];
+  for (let i = NUMERO_FRAME_DPC - 1; i >= 0; i--) {
+    frameOrariDpc.push(new Date(adessoArrotondato.getTime() - i * 5 * 60000));
+  }
+  mostraFrameRadarDpc(frameOrariDpc.length - 1);
+
+  document.getElementById("radar-dpc-play")?.addEventListener("click", alternaAnimazioneRadarDpc);
+  document.getElementById("radar-dpc-prev")?.addEventListener("click", () => { fermaAnimazioneRadarDpc(); spostaFrameRadarDpc(-1); });
+  document.getElementById("radar-dpc-next")?.addEventListener("click", () => { fermaAnimazioneRadarDpc(); spostaFrameRadarDpc(1); });
+}
+
+function formattaOrarioRadarDpc(data) {
+  return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(data);
+}
+
+function mostraFrameRadarDpc(indice) {
+  if (!mappaRadarDpc || !frameOrariDpc[indice]) return;
+  posizioneAnimazioneRadarDpc = indice;
+  const dataFrame = frameOrariDpc[indice];
+
+  if (livelloRadarDpcAttuale) mappaRadarDpc.removeLayer(livelloRadarDpcAttuale);
+  livelloRadarDpcAttuale = L.tileLayer.wms("https://radar-geowebcache.protezionecivile.it/service/wms", {
     layers: "radar:vmi",
     format: "image/png",
     transparent: true,
     version: "1.1.1",
     opacity: 0.75,
     zIndex: 5,
-  }).addTo(mappaRadarDpc);
+    time: dataFrame.toISOString(),
+  });
+  livelloRadarDpcAttuale.addTo(mappaRadarDpc);
+
+  const testoTempo = document.getElementById("radar-dpc-tempo");
+  if (testoTempo) testoTempo.textContent = `${formattaOrarioRadarDpc(dataFrame)} (osservato)`;
+}
+
+function spostaFrameRadarDpc(delta) {
+  let nuovaPosizione = posizioneAnimazioneRadarDpc + delta;
+  if (nuovaPosizione < 0) nuovaPosizione = frameOrariDpc.length - 1;
+  if (nuovaPosizione >= frameOrariDpc.length) nuovaPosizione = 0;
+  mostraFrameRadarDpc(nuovaPosizione);
+}
+
+function fermaAnimazioneRadarDpc() {
+  if (timerAnimazioneRadarDpc) {
+    clearInterval(timerAnimazioneRadarDpc);
+    timerAnimazioneRadarDpc = null;
+    const bottone = document.getElementById("radar-dpc-play");
+    if (bottone) bottone.textContent = "▶";
+  }
+}
+
+function alternaAnimazioneRadarDpc() {
+  if (timerAnimazioneRadarDpc) {
+    fermaAnimazioneRadarDpc();
+  } else {
+    const bottone = document.getElementById("radar-dpc-play");
+    if (bottone) bottone.textContent = "⏸";
+    timerAnimazioneRadarDpc = setInterval(() => spostaFrameRadarDpc(1), 600);
+  }
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
