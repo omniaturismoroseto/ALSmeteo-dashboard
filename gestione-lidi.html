@@ -75,6 +75,8 @@
   .btn-rifiuta, .btn-revoca { background: var(--flag-rosso); color: #fff; }
   .btn-modifica { background: var(--bg-panel-raised); color: var(--ink); border: 1px solid var(--line); }
   .btn-messaggio { background: var(--brass); color: #1A1206; }
+  .btn-telefono { background: var(--flag-giallo); color: #1A1206; }
+  .telefono-mancante { color: var(--flag-rosso); font-weight: 600; }
   button.btn-azione:disabled { opacity: 0.5; cursor: default; }
 
   .schermata-login {
@@ -188,6 +190,7 @@ async function caricaRichieste() {
         <div class="info-lido">
           <div class="nome-lido">${dati.nomeLido || "senza nome"}</div>
           <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.richiestoIl ? " · " + new Date(dati.richiestoIl).toLocaleString("it-IT") : ""}</div>
+          <div class="dettaglio-lido mono">📱 ${dati.telefono || "<span class=\"telefono-mancante\">non fornito</span>"}</div>
         </div>
         <div class="azioni-lido">
           <button class="btn-azione btn-approva" data-azione="approva">Approva</button>
@@ -231,9 +234,11 @@ async function caricaAttivi() {
         <div class="info-lido">
           <div class="nome-lido">${dati.nomeLido || "senza nome"}</div>
           <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.approvatoIl ? " · attivo dal " + new Date(dati.approvatoIl).toLocaleDateString("it-IT") : ""}</div>
+          <div class="dettaglio-lido mono">📱 ${dati.telefono ? dati.telefono : "<span class=\"telefono-mancante\">non fornito</span>"}</div>
         </div>
         <div class="azioni-lido">
           <button class="btn-azione btn-messaggio" data-azione="messaggio">✉️ Messaggio</button>
+          ${dati.telefono ? "" : `<button class="btn-azione btn-telefono" data-azione="richiedi_telefono">📱 Richiedi numero</button>`}
           <button class="btn-azione btn-modifica" data-azione="rinomina">Modifica nome</button>
           <button class="btn-azione btn-revoca" data-azione="revoca">Revoca</button>
         </div>
@@ -261,6 +266,21 @@ async function caricaAttivi() {
         } catch (errore) {
           alert(`Errore: ${errore.message}`);
         } finally {
+          bottone.disabled = false;
+        }
+        return;
+      }
+
+      if (azione === "richiedi_telefono") {
+        const nomeLido = voce.querySelector(".nome-lido").textContent;
+        if (!confirm(`Mandare a "${nomeLido}" il messaggio con il pulsante per condividere il numero di telefono?`)) return;
+
+        bottone.disabled = true;
+        try {
+          await chiamaGestioneLido(chatId, "richiedi_telefono", null, null);
+          alert("Richiesta inviata.");
+        } catch (errore) {
+          alert(`Errore: ${errore.message}`);
           bottone.disabled = false;
         }
         return;
