@@ -324,7 +324,7 @@
       <div id="corpo-tabella-oraria"></div>
     </div>
     <p class="nota-disclaimer">Clicca una riga per portare lì la mappa e lo slider in alto.</p>
-    <p class="nota-disclaimer">Raffiche: valore massimo tra tutti i modelli (caso peggiore) — a differenza degli altri valori in tabella, che sono il consenso mediano.</p>
+    <p class="nota-disclaimer">Raffiche e Pioggia con un punto <span style="opacity:0.6;">·</span> accanto al valore: stima dall'Ensemble API di Open-Meteo (centinaia di previsioni indipendenti dai modelli con copertura sull'Adriatico — ECMWF, ICON, GFS, GEM, UK Met Office, BOM, più le versioni IA di ECMWF), aggiornata ogni ora — probabilità di pioggia reale, non un singolo modello, e raffica al 90° percentile invece del semplice massimo. Senza il punto: valore di riserva dai 5 modelli originali, usato solo se l'ensemble non è ancora disponibile per quell'ora.</p>
   </div>
 
 </main>
@@ -457,11 +457,12 @@ function trovaVoceVicina(orario, istante, tolleranzaMs = TOLLERANZA_MATCH_MS) {
 }
 
 // --- Normalizzazione dati: due fonti diverse, un'unica forma a valle -------
-function normalizzaCore(rilevazione) {
+function normalizzaCore(rilevazione, ensemblePerPunto = {}) {
   return ORDINE_CORE.map((id) => {
     const p = rilevazione.punti.find((x) => x.punto === id);
     const fallback = PUNTI_CORE_FALLBACK[id];
     if (!p) return null;
+    const orarioEnsemble = ensemblePerPunto[id] || [];
     return {
       id, tipo: "core",
       nome: p.nome || fallback.nome,
@@ -469,12 +470,21 @@ function normalizzaCore(rilevazione) {
       lon: p.lon || fallback.lon,
       orario: (p.orario || []).map((o) => {
         const mareVicino = trovaVoceVicina(p.mare || [], new Date(o.ora), 20 * 60 * 1000);
+        // Ensemble Open-Meteo (centinaia di membri, solo i modelli con
+        // copertura sull'Adriatico) — quando disponibile per quest'ora,
+        // sostituisce probabilità pioggia e raffica con una stima
+        // statisticamente più solida (vedi fetchEnsembleAdriatico.js).
+        // Se manca (es. non ancora aggiornato), restano i valori di prima.
+        const ensembleVicino = trovaVoceVicina(orarioEnsemble, new Date(o.ora), 40 * 60 * 1000);
         return {
           ora: o.ora,
           vento_nodi: o.vento_consenso_nodi ?? null,
-          raffica_nodi: o.raffica_max_nodi ?? null,
+          raffica_nodi: ensembleVicino?.rafficaP90Nodi ?? o.raffica_max_nodi ?? null,
+          raffica_fonte: ensembleVicino?.rafficaP90Nodi !== null && ensembleVicino?.rafficaP90Nodi !== undefined ? "ensemble" : "modelli",
           direzione_gradi: o.direzione_consenso_gradi ?? null,
-          pioggia_perc: o.probabilita_pioggia_perc ?? null,
+          pioggia_perc: ensembleVicino?.probabilitaPioggiaPerc ?? o.probabilita_pioggia_perc ?? null,
+          pioggia_fonte: ensembleVicino?.probabilitaPioggiaPerc !== null && ensembleVicino?.probabilitaPioggiaPerc !== undefined ? "ensemble" : "modello singolo",
+          pioggia_membri: ensembleVicino?.numeroMembriPioggia ?? null,
           garbino: !!o.garbino_rischio,
           temperatura_c: o.temperatura_media ?? null,
           indice_uv: o.indice_uv ?? null,
@@ -585,6 +595,7 @@ async function caricaPrevisione() {
   }
 
   const snapEsteso = await getDoc(doc(db, "grigliaAdriatico", "ultima")).catch(() => null);
+  const snapEnsemble = await getDoc(doc(db, "previsioneEnsemble", oggi)).catch(() => null);
 
   if (!snapCore.exists() || !snapCore.data().ultimaRilevazione || !snapCore.data().ultimaRilevazione.punti) {
     statoIniziale.textContent = "Nessuna rilevazione disponibile al momento per Roseto/Pineto. Riprova tra qualche minuto.";
@@ -596,7 +607,12 @@ async function caricaPrevisione() {
   document.getElementById("nota-generato").textContent =
     `Roseto/Pineto: consenso di 5 modelli su 72h, ultima raccolta ${new Date(rilevazione.generatoIl).toLocaleString("it-IT", { timeZone: "Europe/Rome" })}. Costa estesa: modello singolo su 72h, indicativo, non per la massima precisione locale.`;
 
-  puntiCore = normalizzaCore(rilevazione);
+  const ensemblePerPunto = {};
+  if (snapEnsemble && snapEnsemble.exists() && Array.isArray(snapEnsemble.data().punti)) {
+    for (const p of snapEnsemble.data().punti) ensemblePerPunto[p.id] = p.orario || [];
+  }
+
+  puntiCore = normalizzaCore(rilevazione, ensemblePerPunto);
   puntiEstesi = snapEsteso && snapEsteso.exists() ? normalizzaEsteso(snapEsteso.data()) : [];
 
   if (!puntiCore.length || !puntiCore[0].orario.length) {
@@ -1038,9 +1054,9 @@ function popolaTabellaOraria() {
     riga.innerHTML = `
       <span><span class="giorno-riga">${giornoTesto}</span>${ora}</span>
       <span class="cella-vento"><span class="riga-vento-principale"><span class="freccia-vento-tabella" style="transform:rotate(${rotazione}deg)">↑</span><span class="${classeVento}">${o.vento_nodi !== null ? o.vento_nodi.toFixed(0) : "--"} kt</span></span><span class="nome-vento-riga">${nomeVento(o.direzione_gradi)}</span></span>
-      <span class="${classeRaffica}">${o.raffica_nodi !== null ? o.raffica_nodi.toFixed(0) : "--"} kt</span>
+      <span class="${classeRaffica}" title="${o.raffica_fonte === "ensemble" ? "90° percentile su centinaia di membri ensemble" : "massimo tra i 5 modelli"}">${o.raffica_nodi !== null ? o.raffica_nodi.toFixed(0) : "--"} kt${o.raffica_fonte === "ensemble" ? "<span style=\"opacity:0.6;\">·</span>" : ""}</span>
       <span>${mareInfo.testo}${o.altezza_onda_m !== null ? " (" + o.altezza_onda_m.toFixed(1) + "m)" : ""}</span>
-      <span class="${classePioggia}">${o.pioggia_perc !== null ? o.pioggia_perc + "%" : "--"}</span>
+      <span class="${classePioggia}" title="${o.pioggia_fonte === "ensemble" ? `probabilità reale: ${o.pioggia_membri} previsioni indipendenti, quante prevedono pioggia in quell'ora` : "stima da un solo modello"}">${o.pioggia_perc !== null ? o.pioggia_perc + "%" : "--"}${o.pioggia_fonte === "ensemble" ? "<span style=\"opacity:0.6;\">·</span>" : ""}</span>
       <span>${o.temperatura_c !== null ? o.temperatura_c.toFixed(0) + "°" : "--"}</span>
       ${o.garbino ? '<span style="grid-column:1/-1;color:var(--flag-rosso);font-size:0.68rem;padding-top:0.2rem;">⚠️ Rischio Garbino</span>' : ""}
     `;
