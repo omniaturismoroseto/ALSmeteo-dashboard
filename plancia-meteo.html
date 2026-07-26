@@ -537,14 +537,6 @@
     background: #0d222b;
   }
 
-  #mappa-radar-dpc {
-    width: 100%;
-    height: 320px;
-    border-radius: 6px;
-    border: 1px solid var(--line);
-    background: #0d222b;
-  }
-
   .radar-controlli {
     display: flex;
     align-items: center;
@@ -907,11 +899,6 @@ let framesRadar = [];
 let numeroFrameNowcastRadar = 0;
 let posizioneAnimazioneRadar = 0;
 let hostRadar = "";
-let mappaRadarDpc = null;
-let livelloRadarDpcAttuale = null;
-let timerAnimazioneRadarDpc = null;
-let frameOrariDpc = [];
-let posizioneAnimazioneRadarDpc = 0;
 let puntoSelezionato = "roseto_nord";
 let grafico = null;
 let uvMaxOggiGlobale = null;
@@ -944,6 +931,33 @@ function nomeDirezioneVento(gradi) {
   const direzioni = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
   const indice = Math.round(gradi / 45) % 8;
   return direzioni[indice];
+}
+
+// Freccia + etichetta vento sulla mappa radar, dal dato REALE della
+// stazione Netatmo (letturaStazione, già usato altrove in pagina) — non
+// una previsione. Stessa convenzione di frecciaVento.js (usata per le
+// immagini Telegram): direzioneGradi è "da dove soffia" (meteo standard),
+// la freccia punta "verso dove soffia" (+180°).
+function aggiornaFrecciaVentoSuRadar() {
+  const contenitore = document.getElementById("freccia-vento-radar");
+  const icona = document.getElementById("freccia-vento-radar-icona");
+  const testo = document.getElementById("freccia-vento-radar-testo");
+  if (!contenitore || !icona || !testo) return;
+
+  if (!letturaStazione || letturaStazione.direzioneGradi === null || letturaStazione.direzioneGradi === undefined) {
+    contenitore.style.display = "none";
+    return;
+  }
+
+  const direzioneVerso = (letturaStazione.direzioneGradi + 180) % 360;
+  icona.style.transform = `rotate(${direzioneVerso}deg)`;
+
+  const velocitaTesto = letturaStazione.ventoNodi !== null && letturaStazione.ventoNodi !== undefined
+    ? `${letturaStazione.ventoNodi.toFixed(0)} nodi ${nomeDirezioneVento(letturaStazione.direzioneGradi)}`
+    : `da ${nomeDirezioneVento(letturaStazione.direzioneGradi)}`;
+  testo.textContent = velocitaTesto;
+
+  contenitore.style.display = "flex";
 }
 
 function creaBussola(direzione, rischioGarbino, dimensione = 76) {
@@ -1253,6 +1267,10 @@ function renderTutto() {
         <div style="position:absolute; top:10px; right:10px; z-index:500; background:rgba(15,39,51,0.85); border:1px solid var(--brass-dim); border-radius:6px; padding:0.3rem 0.5rem; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--brass); font-size:0.85rem; font-weight:600; pointer-events:none;">
           ↑<br><span style="font-size:0.6rem;">N</span>
         </div>
+        <div id="freccia-vento-radar" style="position:absolute; bottom:10px; left:10px; z-index:500; background:rgba(15,39,51,0.85); border:1px solid var(--brass-dim); border-radius:6px; padding:0.3rem 0.5rem; display:none; align-items:center; gap:0.35rem; font-family:'IBM Plex Mono',monospace; color:#fff; font-size:0.75rem; font-weight:600; pointer-events:none;">
+          <span id="freccia-vento-radar-icona" style="display:inline-block; font-size:1.1rem; line-height:1;">↑</span>
+          <span id="freccia-vento-radar-testo"></span>
+        </div>
       </div>
       <div class="radar-controlli">
         <button class="radar-bottone" id="radar-prev">‹</button>
@@ -1271,26 +1289,6 @@ function renderTutto() {
       </div>
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
-    </div>
-    <div class="pannello-radar">
-      <div class="sezione-titolo"><span>📡 Radar Protezione Civile (prototipo di test)</span></div>
-      <div style="position:relative;">
-        <div id="mappa-radar-dpc"></div>
-      </div>
-      <div class="radar-controlli">
-        <button class="radar-bottone" id="radar-dpc-prev">‹</button>
-        <button class="radar-bottone" id="radar-dpc-play">▶</button>
-        <button class="radar-bottone" id="radar-dpc-next">›</button>
-        <span class="radar-tempo" id="radar-dpc-tempo">caricamento radar...</span>
-      </div>
-      <img
-        id="radar-dpc-legenda"
-        alt="Legenda intensità — Radar-DPC (VMI)"
-        style="max-width:100%; height:auto; background:#0d222b; border-radius:4px; padding:0.4rem; margin-top:0.6rem; display:block;"
-        src="https://radar-geowebcache.protezionecivile.it/service/wms?REQUEST=GetLegendGraphic&VERSION=1.1.1&FORMAT=image/png&LAYER=radar:vmi"
-        onerror="this.style.display='none';"
-      >
-      <p class="satellite-nota">Radar-DPC (Dipartimento Protezione Civile — prodotto VMI, licenza CC-BY-SA): mappa già renderizzata dal servizio ufficiale, mostrata qui solo a scopo di confronto con il radar RainViewer sopra. Non alimenta ancora nessun alert automatico ai lidi — al momento invia solo notifiche di prova a Marco e Dante per valutarne l'affidabilità.</p>
     </div>
     <div class="pannello-satellite">
       <div class="sezione-titolo"><span>🛰️ Satellite Adriatico centrale</span></div>
@@ -1314,7 +1312,7 @@ function renderTutto() {
   });
 
   inizializzaRadar();
-  inizializzaRadarDpc();
+  aggiornaFrecciaVentoSuRadar();
 
   document.querySelectorAll("[data-punto]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -1480,144 +1478,6 @@ function inizializzaRadar() {
   document.getElementById("radar-play")?.addEventListener("click", alternaAnimazioneRadar);
   document.getElementById("radar-prev")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(-1); });
   document.getElementById("radar-next")?.addEventListener("click", () => { fermaAnimazioneRadar(); spostaFrameRadar(1); });
-}
-
-// --- RADAR PROTEZIONE CIVILE (prototipo di test, sola visualizzazione) ----
-// Non elaboriamo noi il dato: mostriamo direttamente la mappa già
-// renderizzata dal loro servizio WMS ufficiale (stesso motore grafico del
-// sito radar.protezionecivile.it), sovrapposta alla stessa base OSM usata
-// sopra per il radar RainViewer, per poterle confrontare a colpo d'occhio.
-async function inizializzaRadarDpc() {
-  if (mappaRadarDpc) { mappaRadarDpc.remove(); mappaRadarDpc = null; }
-
-  const contenitore = document.getElementById("mappa-radar-dpc");
-  if (!contenitore || typeof L === "undefined") return;
-
-  mappaRadarDpc = L.map("mappa-radar-dpc", { zoomControl: false, attributionControl: false, maxZoom: 9, minZoom: 6 }).setView([42.75, 13.8], 7);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 9, className: "livello-mappa-scuro" }).addTo(mappaRadarDpc);
-  L.circleMarker([42.68, 14.0], { radius: 5, color: "#2F9E44" }).addTo(mappaRadarDpc).bindTooltip("Roseto/Pineto", { permanent: false, direction: "top", className: "mono" });
-
-  // Stesse sentinelle (20km/40km + anello 60km NO-N) già disegnate sulla
-  // mappa RainViewer sopra — stessi valori usati lato server in
-  // meteoHelpers.js, ripetuti qui per coerenza visiva tra le due mappe.
-  const CENTRO_SENTINELLE_DPC = [42.68, 14.0];
-  const R_KM_DPC = 111.32;
-  const latRadDpc = (CENTRO_SENTINELLE_DPC[0] * Math.PI) / 180;
-
-  [20000, 40000].forEach((raggioM) => {
-    L.circle(CENTRO_SENTINELLE_DPC, {
-      radius: raggioM,
-      color: "#C99B4A",
-      weight: 1.5,
-      fillColor: "#C99B4A",
-      fillOpacity: 0.04,
-      dashArray: "4 4",
-    }).addTo(mappaRadarDpc);
-  });
-
-  [20, 40].forEach((raggioKm) => {
-    [0, 45, 90, 135, 180, 225, 270, 315].forEach((bearing) => {
-      const bearingRad = (bearing * Math.PI) / 180;
-      const dLat = (raggioKm / R_KM_DPC) * Math.cos(bearingRad);
-      const dLon = (raggioKm / (R_KM_DPC * Math.cos(latRadDpc))) * Math.sin(bearingRad);
-      L.circleMarker([CENTRO_SENTINELLE_DPC[0] + dLat, CENTRO_SENTINELLE_DPC[1] + dLon], {
-        radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
-      }).addTo(mappaRadarDpc);
-    });
-  });
-
-  [270, 292.5, 315, 337.5, 0].forEach((bearing) => {
-    const bearingRad = (bearing * Math.PI) / 180;
-    const dLat = (60 / R_KM_DPC) * Math.cos(bearingRad);
-    const dLon = (60 / (R_KM_DPC * Math.cos(latRadDpc))) * Math.sin(bearingRad);
-    L.circleMarker([CENTRO_SENTINELLE_DPC[0] + dLat, CENTRO_SENTINELLE_DPC[1] + dLon], {
-      radius: 4, color: "#C99B4A", fillColor: "#C99B4A", fillOpacity: 0.8,
-    }).addTo(mappaRadarDpc).bindTooltip("Sentinella 60km", { permanent: false, direction: "top", className: "mono" });
-  });
-
-  // Costruiamo gli ultimi 60 minuti a passi di 5 minuti (cadenza del
-  // prodotto VMI), MA ancorati all'ultimo orario realmente disponibile
-  // secondo il servizio Radar-DPC stesso — non ha senso indovinare
-  // arrotondando l'orologio locale, perché il dato reale arriva quasi
-  // sempre con qualche minuto di ritardo (anche 8-10 minuti) e chiedere
-  // un orario che non esiste ancora restituisce un'immagine vuota.
-  const URL_ULTIMO_TIMESTAMP_DPC = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/radarDpcUltimoTimestamp";
-  let ultimoOsservatoDpc;
-  try {
-    const rispostaTs = await fetch(URL_ULTIMO_TIMESTAMP_DPC);
-    if (!rispostaTs.ok) throw new Error(`risposta ${rispostaTs.status}`);
-    const datiTs = await rispostaTs.json();
-    ultimoOsservatoDpc = new Date(datiTs.timestampMs);
-  } catch (err) {
-    console.error("radar-dpc: impossibile ottenere l'ultimo orario reale, uso una stima approssimata:", err);
-    // Fallback prudente: meglio un orario probabilmente sbagliato di
-    // qualche minuto che un pannello completamente vuoto senza spiegazione.
-    ultimoOsservatoDpc = new Date();
-    ultimoOsservatoDpc.setSeconds(0, 0);
-    ultimoOsservatoDpc.setMinutes(Math.floor(ultimoOsservatoDpc.getMinutes() / 5) * 5 - 10);
-  }
-
-  const NUMERO_FRAME_DPC = 12; // 60 minuti / 5 minuti
-  frameOrariDpc = [];
-  for (let i = NUMERO_FRAME_DPC - 1; i >= 0; i--) {
-    frameOrariDpc.push(new Date(ultimoOsservatoDpc.getTime() - i * 5 * 60000));
-  }
-  mostraFrameRadarDpc(frameOrariDpc.length - 1);
-
-  document.getElementById("radar-dpc-play")?.addEventListener("click", alternaAnimazioneRadarDpc);
-  document.getElementById("radar-dpc-prev")?.addEventListener("click", () => { fermaAnimazioneRadarDpc(); spostaFrameRadarDpc(-1); });
-  document.getElementById("radar-dpc-next")?.addEventListener("click", () => { fermaAnimazioneRadarDpc(); spostaFrameRadarDpc(1); });
-}
-
-function formattaOrarioRadarDpc(data) {
-  return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(data);
-}
-
-function mostraFrameRadarDpc(indice) {
-  if (!mappaRadarDpc || !frameOrariDpc[indice]) return;
-  posizioneAnimazioneRadarDpc = indice;
-  const dataFrame = frameOrariDpc[indice];
-
-  if (livelloRadarDpcAttuale) mappaRadarDpc.removeLayer(livelloRadarDpcAttuale);
-  livelloRadarDpcAttuale = L.tileLayer.wms("https://radar-geowebcache.protezionecivile.it/service/wms", {
-    layers: "radar:vmi",
-    format: "image/png",
-    transparent: true,
-    version: "1.1.1",
-    opacity: 0.95,
-    zIndex: 5,
-    time: dataFrame.toISOString(),
-  });
-  livelloRadarDpcAttuale.addTo(mappaRadarDpc);
-
-  const testoTempo = document.getElementById("radar-dpc-tempo");
-  if (testoTempo) testoTempo.textContent = `${formattaOrarioRadarDpc(dataFrame)} (osservato)`;
-}
-
-function spostaFrameRadarDpc(delta) {
-  let nuovaPosizione = posizioneAnimazioneRadarDpc + delta;
-  if (nuovaPosizione < 0) nuovaPosizione = frameOrariDpc.length - 1;
-  if (nuovaPosizione >= frameOrariDpc.length) nuovaPosizione = 0;
-  mostraFrameRadarDpc(nuovaPosizione);
-}
-
-function fermaAnimazioneRadarDpc() {
-  if (timerAnimazioneRadarDpc) {
-    clearInterval(timerAnimazioneRadarDpc);
-    timerAnimazioneRadarDpc = null;
-    const bottone = document.getElementById("radar-dpc-play");
-    if (bottone) bottone.textContent = "▶";
-  }
-}
-
-function alternaAnimazioneRadarDpc() {
-  if (timerAnimazioneRadarDpc) {
-    fermaAnimazioneRadarDpc();
-  } else {
-    const bottone = document.getElementById("radar-dpc-play");
-    if (bottone) bottone.textContent = "⏸";
-    timerAnimazioneRadarDpc = setInterval(() => spostaFrameRadarDpc(1), 600);
-  }
 }
 
 document.getElementById("btn-refresh").addEventListener("click", caricaDati);
