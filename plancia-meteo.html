@@ -891,6 +891,7 @@ const COLORE_HEX = { verde: "#2F9E44", giallo: "#F0B429", rosso: "#E0393E" };
 let ultimoStato = null;
 let rilevazioniOggi = [];
 let letturaStazione = null;
+let puntoGrigliaVicinoRoseto = null;
 let riepilogoPubbliche = null;
 let mappaRadar = null;
 let livelloRadarAttuale = null;
@@ -933,28 +934,30 @@ function nomeDirezioneVento(gradi) {
   return direzioni[indice];
 }
 
-// Freccia + etichetta vento sulla mappa radar, dal dato REALE della
-// stazione Netatmo (letturaStazione, già usato altrove in pagina) — non
-// una previsione. Stessa convenzione di frecciaVento.js (usata per le
-// immagini Telegram): direzioneGradi è "da dove soffia" (meteo standard),
-// la freccia punta "verso dove soffia" (+180°).
+// Freccia + etichetta vento sulla mappa radar, dalla STESSA fonte usata
+// dalla pagina "adriatico" (griglia di 20 punti, grigliaAdriatico/ultima)
+// — il punto più vicino a Roseto/Pineto — non più la singola stazione
+// Netatmo, per coerenza tra le due pagine. Stessa convenzione di
+// frecciaVento.js (usata per le immagini Telegram): direzioneGradi è "da
+// dove soffia" (meteo standard), la freccia punta "verso dove soffia"
+// (+180°).
 function aggiornaFrecciaVentoSuRadar() {
   const contenitore = document.getElementById("freccia-vento-radar");
   const icona = document.getElementById("freccia-vento-radar-icona");
   const testo = document.getElementById("freccia-vento-radar-testo");
   if (!contenitore || !icona || !testo) return;
 
-  if (!letturaStazione || letturaStazione.direzioneGradi === null || letturaStazione.direzioneGradi === undefined) {
+  if (!puntoGrigliaVicinoRoseto || puntoGrigliaVicinoRoseto.direzioneGradi === null || puntoGrigliaVicinoRoseto.direzioneGradi === undefined) {
     contenitore.style.display = "none";
     return;
   }
 
-  const direzioneVerso = (letturaStazione.direzioneGradi + 180) % 360;
+  const direzioneVerso = (puntoGrigliaVicinoRoseto.direzioneGradi + 180) % 360;
   icona.style.transform = `rotate(${direzioneVerso}deg)`;
 
-  const velocitaTesto = letturaStazione.ventoNodi !== null && letturaStazione.ventoNodi !== undefined
-    ? `${letturaStazione.ventoNodi.toFixed(0)} nodi ${nomeDirezioneVento(letturaStazione.direzioneGradi)}`
-    : `da ${nomeDirezioneVento(letturaStazione.direzioneGradi)}`;
+  const velocitaTesto = puntoGrigliaVicinoRoseto.ventoNodi !== null && puntoGrigliaVicinoRoseto.ventoNodi !== undefined
+    ? `${puntoGrigliaVicinoRoseto.ventoNodi.toFixed(0)} nodi ${nomeDirezioneVento(puntoGrigliaVicinoRoseto.direzioneGradi)}`
+    : `da ${nomeDirezioneVento(puntoGrigliaVicinoRoseto.direzioneGradi)}`;
   testo.textContent = velocitaTesto;
 
   contenitore.style.display = "flex";
@@ -1328,11 +1331,12 @@ async function caricaDati() {
   const oggi = dataOggiRoma();
 
   try {
-    const [docOggi, rilevazioniSnap, docStazione, docPubbliche] = await Promise.all([
+    const [docOggi, rilevazioniSnap, docStazione, docPubbliche, docGriglia] = await Promise.all([
       getDoc(doc(db, "meteoGiornaliero", oggi)),
       getDocs(query(collection(db, "meteoGiornaliero", oggi, "riepilogoOre"), limit(500))),
       getDoc(doc(db, "stazioneLocale", "roseto_nord")).catch(() => null),
       getDoc(doc(db, "stazioniPubblicheNetatmo", oggi)).catch(() => null),
+      getDoc(doc(db, "grigliaAdriatico", "ultima")).catch(() => null),
     ]);
 
     if (docOggi.exists() && docOggi.data().ultimaRilevazione) {
@@ -1350,6 +1354,25 @@ async function caricaDati() {
 
     letturaStazione = docStazione && docStazione.exists() ? docStazione.data().ultimaLettura : null;
     riepilogoPubbliche = docPubbliche && docPubbliche.exists() ? docPubbliche.data().ultimoRiepilogo : null;
+
+    // Punto della griglia adriatica (stessa fonte della pagina "adriatico")
+    // più vicino a Roseto/Pineto — usato per la freccia vento sul radar,
+    // al posto della sola stazione Netatmo puntuale.
+    puntoGrigliaVicinoRoseto = null;
+    if (docGriglia && docGriglia.exists() && Array.isArray(docGriglia.data().punti)) {
+      const CENTRO_ROSETO_LAT = 42.68, CENTRO_ROSETO_LON = 14.0;
+      let distanzaMinima = Infinity;
+      for (const p of docGriglia.data().punti) {
+        if (p.lat === undefined || p.lon === undefined) continue;
+        const dLat = p.lat - CENTRO_ROSETO_LAT;
+        const dLon = p.lon - CENTRO_ROSETO_LON;
+        const distanzaApprox = dLat * dLat + dLon * dLon; // sufficiente solo per confrontare, non serve la distanza vera in km
+        if (distanzaApprox < distanzaMinima) {
+          distanzaMinima = distanzaApprox;
+          puntoGrigliaVicinoRoseto = p;
+        }
+      }
+    }
   } catch (errore) {
     console.error(errore);
     document.getElementById("testo-live").textContent = "errore di connessione";
