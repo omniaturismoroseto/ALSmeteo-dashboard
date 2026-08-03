@@ -1350,6 +1350,7 @@ async function caricaDati() {
       .sort((a, b) => a.rilevazione.localeCompare(b.rilevazione));
 
     document.getElementById("testo-live").textContent = `aggiornato alle ${oraRoma()}`;
+    document.getElementById("pallino-live").style.background = "";
     document.getElementById("footer-info").textContent = `${rilevazioniOggi.length} rilevazioni oggi · dati Open-Meteo (ensemble 5 modelli)`;
 
     letturaStazione = docStazione && docStazione.exists() ? docStazione.data().ultimaLettura : null;
@@ -1357,18 +1358,29 @@ async function caricaDati() {
 
     // Punto della griglia adriatica (stessa fonte della pagina "adriatico")
     // più vicino a Roseto/Pineto — usato per la freccia vento sul radar,
-    // al posto della sola stazione Netatmo puntuale.
+    // al posto della sola stazione Netatmo puntuale. Stessa formula di
+    // distanza (haversine, in km) usata anche lato server per le immagini
+    // Telegram (monitoraRadarOsservato.js) — prima qui c'era
+    // un'approssimazione diversa (somma dei quadrati di lat/lon, senza
+    // correggere la compressione della longitudine) che poteva scegliere
+    // un punto diverso da quello scelto lato server, con letture vento
+    // leggermente diverse pur nello stesso momento.
     puntoGrigliaVicinoRoseto = null;
     if (docGriglia && docGriglia.exists() && Array.isArray(docGriglia.data().punti)) {
       const CENTRO_ROSETO_LAT = 42.68, CENTRO_ROSETO_LON = 14.0;
+      const R_KM = 6371;
+      const distanzaKmHaversine = (lat1, lon1, lat2, lon2) => {
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+        return R_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
       let distanzaMinima = Infinity;
       for (const p of docGriglia.data().punti) {
         if (p.lat === undefined || p.lon === undefined) continue;
-        const dLat = p.lat - CENTRO_ROSETO_LAT;
-        const dLon = p.lon - CENTRO_ROSETO_LON;
-        const distanzaApprox = dLat * dLat + dLon * dLon; // sufficiente solo per confrontare, non serve la distanza vera in km
-        if (distanzaApprox < distanzaMinima) {
-          distanzaMinima = distanzaApprox;
+        const d = distanzaKmHaversine(CENTRO_ROSETO_LAT, CENTRO_ROSETO_LON, p.lat, p.lon);
+        if (d < distanzaMinima) {
+          distanzaMinima = d;
           puntoGrigliaVicinoRoseto = p;
         }
       }
