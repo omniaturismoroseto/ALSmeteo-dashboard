@@ -159,7 +159,7 @@
   </div>
 
   <div class="pannello">
-    <div class="sezione-titolo">20 punti lungo la costa</div>
+    <div class="sezione-titolo" id="titolo-punti">Punti lungo la costa</div>
     <p class="didascalia-aggiornamento" id="didascalia-griglia">Caricamento…</p>
     <div class="lista-punti" id="lista-punti"><div class="messaggio-stato">Caricamento…</div></div>
   </div>
@@ -332,6 +332,8 @@ async function caricaGriglia() {
     const dati = snap.data();
     const oraAggiornamento = new Date(dati.generatoIl).toLocaleString("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
     didascalia.textContent = `Ultimo aggiornamento: ${oraAggiornamento} — ${dati.punti.length} punti.`;
+    const titoloPunti = document.getElementById("titolo-punti");
+    if (titoloPunti) titoloPunti.textContent = `${dati.punti.length} punti lungo la costa`;
 
     const puntiConOraAttuale = dati.punti.map((p) => ({ ...p, adesso: oraAttuale(p.orario) })).filter((p) => p.adesso);
 
