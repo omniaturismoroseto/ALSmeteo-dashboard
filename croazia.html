@@ -88,6 +88,18 @@
     font-weight: 600; font-size: 0.9rem; padding: 0.75rem; border-radius: 8px; cursor: pointer; margin-top: 0.4rem;
   }
   .login-errore { color: var(--flag-rosso) !important; font-size: 0.75rem !important; margin: 0.8rem 0 0 !important; min-height: 1em; }
+
+  .puntino-posizione-utente {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #4285F4; border: 2px solid #fff;
+    box-shadow: 0 0 0 rgba(66,133,244,0.5);
+    animation: pulsaPosizione 2s infinite;
+  }
+  @keyframes pulsaPosizione {
+    0% { box-shadow: 0 0 0 0 rgba(66,133,244,0.6); }
+    70% { box-shadow: 0 0 0 14px rgba(66,133,244,0); }
+    100% { box-shadow: 0 0 0 0 rgba(66,133,244,0); }
+  }
 </style>
 </head>
 <body>
@@ -122,6 +134,7 @@
   <div class="pannello">
     <div class="sezione-titolo">🌬️🌊 Windy — venti e mare, tutta la costa</div>
     <iframe
+      id="iframe-windy"
       title="Windy — venti e mare, costa croata"
       width="100%"
       height="450"
@@ -129,7 +142,7 @@
       src="https://embed.windy.com/embed2.html?lat=43.8&amp;lon=16.0&amp;detailLat=43.8&amp;detailLon=16.0&amp;width=650&amp;height=450&amp;zoom=6&amp;level=surface&amp;overlay=wind&amp;product=ecmwf&amp;menu=true&amp;message=true&amp;marker=true&amp;calendar=now&amp;pressure=false&amp;type=map&amp;location=coordinates&amp;detail=false&amp;metricWind=kt&amp;metricTemp=%C2%B0C&amp;radarRange=-1"
       loading="lazy"
     ></iframe>
-    <p class="didascalia-aggiornamento" style="margin-top:0.6rem;">Usa il menu in alto a sinistra dentro la mappa per passare da "vento" a "onde"/"mare" — servizio esterno (Windy.com), non elaborato da noi.</p>
+    <p class="didascalia-aggiornamento" style="margin-top:0.6rem;">Usa il menu in alto a sinistra dentro la mappa per passare da "vento" a "onde"/"mare" — servizio esterno (Windy.com), non elaborato da noi. Si centra sulla tua posizione GPS, se la condividi.</p>
   </div>
 
   <div class="pannello">
@@ -185,6 +198,70 @@ const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 const auth = getAuth(app);
 
 let mappaCroazia = null;
+let marcatorePosizioneCroazia = null;
+let marcatorePosizioneRadar = null;
+let windyGiaCentrato = false;
+
+function avviaGeolocalizzazione() {
+  if (!("geolocation" in navigator)) {
+    console.warn("Geolocalizzazione non supportata da questo browser.");
+    return;
+  }
+
+  navigator.geolocation.watchPosition(
+    (posizione) => {
+      const lat = posizione.coords.latitude;
+      const lon = posizione.coords.longitude;
+      const iconaPosizione = L.divIcon({ className: "", html: `<div class="puntino-posizione-utente"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
+
+      // Mappa vento/punti
+      if (mappaCroazia) {
+        if (marcatorePosizioneCroazia) {
+          marcatorePosizioneCroazia.setLatLng([lat, lon]);
+        } else {
+          marcatorePosizioneCroazia = L.marker([lat, lon], { icon: iconaPosizione, zIndexOffset: 1000 })
+            .addTo(mappaCroazia)
+            .bindTooltip("La tua posizione", { permanent: false, direction: "top", className: "mono" });
+        }
+      }
+
+      // Mappa radar
+      if (mappaRadarPagina) {
+        if (marcatorePosizioneRadar) {
+          marcatorePosizioneRadar.setLatLng([lat, lon]);
+        } else {
+          marcatorePosizioneRadar = L.marker([lat, lon], { icon: iconaPosizione, zIndexOffset: 1000 })
+            .addTo(mappaRadarPagina)
+            .bindTooltip("La tua posizione", { permanent: false, direction: "top", className: "mono" });
+        }
+      }
+
+      // Windy: si centra sulla posizione solo alla PRIMA rilevazione, per
+      // non far "saltare" la mappa (con relativo ricaricamento dell'iframe)
+      // ogni volta che ti sposti di poco.
+      if (!windyGiaCentrato) {
+        windyGiaCentrato = true;
+        const iframeWindy = document.getElementById("iframe-windy");
+        if (iframeWindy) {
+          const srcAttuale = new URL(iframeWindy.src);
+          srcAttuale.searchParams.set("lat", lat.toFixed(4));
+          srcAttuale.searchParams.set("lon", lon.toFixed(4));
+          srcAttuale.searchParams.set("detailLat", lat.toFixed(4));
+          srcAttuale.searchParams.set("detailLon", lon.toFixed(4));
+          srcAttuale.searchParams.set("zoom", "9");
+          iframeWindy.src = srcAttuale.toString();
+        }
+      }
+    },
+    (errore) => {
+      // Niente di bloccante: se l'utente nega il permesso o il GPS non è
+      // disponibile, le mappe restano semplicemente come prima (nessun
+      // puntino "sei qui"), tutto il resto della pagina funziona uguale.
+      console.warn(`Geolocalizzazione non disponibile: ${errore.message}`);
+    },
+    { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
+  );
+}
 
 function inizializzaMappa() {
   if (mappaCroazia) return;
@@ -385,6 +462,7 @@ onAuthStateChanged(auth, (utente) => {
     inizializzaMappa();
     caricaGriglia();
     inizializzaRadarPagina();
+    avviaGeolocalizzazione();
   }
 });
 
