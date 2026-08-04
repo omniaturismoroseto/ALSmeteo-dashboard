@@ -60,6 +60,17 @@
     padding: 0.7rem 0.8rem; font-size: 0.75rem; cursor: pointer;
   }
   .scheda-punto:hover { border-color: var(--brass-dim); }
+  .scheda-punto.punto-vicino {
+    border-color: var(--brass);
+    border-width: 2px;
+    box-shadow: 0 0 0 1px var(--brass);
+  }
+  .scheda-punto.punto-vicino .nome-punto::after {
+    content: " 📍 più vicino";
+    color: var(--brass);
+    font-weight: 400;
+    font-size: 0.65rem;
+  }
   .scheda-punto .nome-punto { font-weight: 600; margin-bottom: 0.35rem; color: var(--ink); }
   .scheda-punto .riga-dato { display: flex; justify-content: space-between; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; margin-top: 0.15rem; }
   .scheda-punto .riga-dato span:last-child { color: var(--ink); }
@@ -201,6 +212,39 @@ let mappaCroazia = null;
 let marcatorePosizioneCroazia = null;
 let marcatorePosizioneRadar = null;
 let windyGiaCentrato = false;
+let ultimiPuntiCaricati = []; // [{id/nome, lat, lon}] dall'ultima caricaGriglia(), per calcolare il più vicino alla posizione GPS
+let ultimaPosizioneUtente = null; // {lat, lon}
+
+// Distanza in km tra due coordinate (formula haversine) — stessa usata
+// anche lato server per Roseto, qui in versione client-side.
+function distanzaKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Trova, tra i punti già caricati nella pagina, quello più vicino alla
+// posizione GPS nota, e lo evidenzia nella lista delle schede sotto.
+// Chiamata sia quando arriva un nuovo fix GPS sia quando i dati dei punti
+// vengono ricaricati — a prescindere da quale delle due arriva prima.
+function evidenziaPuntoVicino() {
+  if (!ultimaPosizioneUtente || ultimiPuntiCaricati.length === 0) return;
+
+  let puntoVicino = null;
+  let distanzaMinima = Infinity;
+  for (const p of ultimiPuntiCaricati) {
+    if (p.lat === undefined || p.lon === undefined) continue;
+    const d = distanzaKm(ultimaPosizioneUtente.lat, ultimaPosizioneUtente.lon, p.lat, p.lon);
+    if (d < distanzaMinima) { distanzaMinima = d; puntoVicino = p; }
+  }
+  if (!puntoVicino) return;
+
+  document.querySelectorAll(".scheda-punto").forEach((scheda) => {
+    scheda.classList.toggle("punto-vicino", scheda.getAttribute("data-nome") === puntoVicino.nome);
+  });
+}
 
 function avviaGeolocalizzazione() {
   if (!("geolocation" in navigator)) {
@@ -212,6 +256,7 @@ function avviaGeolocalizzazione() {
     (posizione) => {
       const lat = posizione.coords.latitude;
       const lon = posizione.coords.longitude;
+      ultimaPosizioneUtente = { lat, lon };
       const iconaPosizione = L.divIcon({ className: "", html: `<div class="puntino-posizione-utente"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
 
       // Mappa vento/punti
@@ -252,6 +297,8 @@ function avviaGeolocalizzazione() {
           iframeWindy.src = srcAttuale.toString();
         }
       }
+
+      evidenziaPuntoVicino();
     },
     (errore) => {
       // Niente di bloccante: se l'utente nega il permesso o il GPS non è
@@ -336,6 +383,7 @@ async function caricaGriglia() {
     if (titoloPunti) titoloPunti.textContent = `${dati.punti.length} punti lungo la costa`;
 
     const puntiConOraAttuale = dati.punti.map((p) => ({ ...p, adesso: oraAttuale(p.orario) })).filter((p) => p.adesso);
+    ultimiPuntiCaricati = puntiConOraAttuale.map((p) => ({ nome: p.nome, lat: p.lat, lon: p.lon }));
 
     contenitoreLista.innerHTML = puntiConOraAttuale.map((p) => `
       <div class="scheda-punto" data-lat="${p.lat}" data-lon="${p.lon}" data-nome="${p.nome}">
@@ -367,6 +415,8 @@ async function caricaGriglia() {
         if (mappaCroazia) mappaCroazia.setView([lat, lon], 9);
       });
     });
+
+    evidenziaPuntoVicino();
   } catch (errore) {
     contenitoreLista.innerHTML = `<div class="messaggio-stato">Errore nel caricamento: ${errore.message}</div>`;
   }
