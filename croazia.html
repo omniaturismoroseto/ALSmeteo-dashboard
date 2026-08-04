@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Croazia — Omnia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A1C24">
+<link rel="apple-touch-icon" href="icona-192.png">
+<style>
+  :root {
+    --bg-abyss: #0A1C24; --bg-panel: #0F2733; --bg-panel-raised: #163542;
+    --ink: #E8F0EE; --ink-muted: #7FA0A8; --ink-faint: #4C6870;
+    --brass: #C99B4A; --brass-dim: #8C6E3B; --line: #234653;
+    --flag-verde: #2F9E44; --flag-giallo: #F0B429; --flag-rosso: #E0393E;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg-abyss); color: var(--ink); font-family: 'Space Grotesk', sans-serif; padding: 0 0 3rem; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  header { padding: 0.85rem 1rem 0.65rem; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em; margin: 0; text-transform: uppercase; }
+  h1 span { color: var(--brass); }
+  p.sottotitolo { margin: 0.2rem 0 0; font-size: 0.7rem; color: var(--ink-muted); }
+  .barra-link-contenitore { position: relative; margin-top: 0.55rem; }
+  .barra-link-contenitore::after {
+    content: ""; position: absolute; top: 0; right: 0; bottom: 2px; width: 28px;
+    background: linear-gradient(to right, transparent, var(--bg-abyss)); pointer-events: none;
+  }
+  .barra-link-contenitore.fine-scroll::after { display: none; }
+  .barra-link {
+    display: flex; gap: 0.5rem; align-items: center;
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .barra-link::-webkit-scrollbar { display: none; }
+  .barra-link a {
+    color: var(--brass); font-size: 0.68rem; text-decoration: none; padding: 0.32rem 0.65rem;
+    border: 1px solid var(--brass-dim); border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.25rem 0; }
+  .messaggio-stato { padding: 2rem 1rem; text-align: center; color: var(--ink-muted); font-size: 0.85rem; }
+
+  .pannello { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1rem; margin-bottom: 1.5rem; }
+  .sezione-titolo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); margin: 0 0 0.85rem; }
+
+  #mappa-croazia { width: 100%; height: 62vh; min-height: 380px; border-radius: 8px; }
+  #mappa-radar-croazia-pagina { width: 100%; height: 400px; border-radius: 8px; background: #0d222b; }
+  .livello-mappa-scuro { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6); }
+
+  .legenda-corrente { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.7rem; color: var(--ink-muted); align-items: center; }
+  .legenda-corrente .campione { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 0.3rem; vertical-align: middle; }
+
+  .lista-punti { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.7rem; }
+  .scheda-punto {
+    background: var(--bg-panel-raised); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.7rem 0.8rem; font-size: 0.75rem; cursor: pointer;
+  }
+  .scheda-punto:hover { border-color: var(--brass-dim); }
+  .scheda-punto .nome-punto { font-weight: 600; margin-bottom: 0.35rem; color: var(--ink); }
+  .scheda-punto .riga-dato { display: flex; justify-content: space-between; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; margin-top: 0.15rem; }
+  .scheda-punto .riga-dato span:last-child { color: var(--ink); }
+
+  .didascalia-aggiornamento { font-size: 0.7rem; color: var(--ink-faint); margin-top: -0.4rem; margin-bottom: 0.9rem; }
+  .radar-controlli { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; }
+  .radar-bottone {
+    background: var(--bg-panel-raised); border: 1px solid var(--brass-dim); color: var(--brass);
+    border-radius: 6px; padding: 0.3rem 0.7rem; font-size: 0.9rem; cursor: pointer; font-family: 'IBM Plex Mono', monospace;
+  }
+  .radar-tempo { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--ink-muted); }
+  .barra-legenda-pioggia { height: 10px; border-radius: 5px; margin-top: 0.7rem; background: linear-gradient(to right, #0d6ef0, #16c47f, #f0e116, #f08a16, #e0393e, #f0b0e0); }
+  .etichette-legenda-pioggia { display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--ink-muted); margin-top: 0.3rem; }
+
+  .schermata-login { position: fixed; inset: 0; background: var(--bg-abyss); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1.25rem; }
+  .scheda-login { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 2rem 1.5rem; width: 100%; max-width: 340px; text-align: center; }
+  .scheda-login h2 { font-size: 1.05rem; margin: 0 0 0.4rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); }
+  .scheda-login p { color: var(--ink-muted); font-size: 0.78rem; margin: 0 0 1.3rem; }
+  .scheda-login input {
+    width: 100%; background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; padding: 0.7rem 0.9rem; border-radius: 8px; margin-bottom: 0.7rem;
+  }
+  .scheda-login input:focus { outline: none; border-color: var(--brass); }
+  .scheda-login button {
+    width: 100%; background: var(--brass); color: #1A1206; border: none; font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600; font-size: 0.9rem; padding: 0.75rem; border-radius: 8px; cursor: pointer; margin-top: 0.4rem;
+  }
+  .login-errore { color: var(--flag-rosso) !important; font-size: 0.75rem !important; margin: 0.8rem 0 0 !important; min-height: 1em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🇭🇷 <span>Croazia</span></h1>
+  <p class="sottotitolo">Vento, pioggia, radar — riferimento personale per il viaggio, non fa parte del monitoraggio di sicurezza di Roseto/Pineto</p>
+  <div class="barra-link-contenitore" id="barra-link-contenitore">
+    <div class="barra-link" id="barra-link">
+      <a href="plancia-meteo.html">← plancia</a>
+      <a href="vista-adriatico.html">🌊 adriatico</a>
+      <a href="previsione-72h.html">📈 72h</a>
+    </div>
+  </div>
+</header>
+
+<main id="contenuto-principale" style="display:none;">
+  <div class="pannello">
+    <div class="sezione-titolo">Vento — costa croata (Istria → Dubrovnik)</div>
+    <div id="mappa-croazia"></div>
+    <div class="legenda-corrente">
+      <span><span class="campione" style="background:#E8F0EE;"></span>&lt;5 kn</span>
+      <span><span class="campione" style="background:#7FC4D8;"></span>5-10 kn</span>
+      <span><span class="campione" style="background:#2F9E44;"></span>10-15 kn</span>
+      <span><span class="campione" style="background:#F0B429;"></span>15-20 kn</span>
+      <span><span class="campione" style="background:#E0393E;"></span>20-25 kn</span>
+      <span><span class="campione" style="background:#B0189E;"></span>&gt;25 kn</span>
+      <span style="margin-left:auto;">Le frecce indicano dove soffia il vento — Open-Meteo, aggiornamento ogni 30 min</span>
+    </div>
+  </div>
+
+  <div class="pannello">
+    <div class="sezione-titolo">📡 Radar pioggia — tutta la costa</div>
+    <div id="mappa-radar-croazia-pagina"></div>
+    <div class="radar-controlli">
+      <button class="radar-bottone" id="radar-hrpag-prev">‹</button>
+      <button class="radar-bottone" id="radar-hrpag-play">▶</button>
+      <button class="radar-bottone" id="radar-hrpag-next">›</button>
+      <span class="radar-tempo" id="radar-hrpag-tempo">caricamento radar...</span>
+    </div>
+    <div class="barra-legenda-pioggia"></div>
+    <div class="etichette-legenda-pioggia"><span>Leggero</span><span>Moderato</span><span>Forte</span><span>Tormenta</span></div>
+  </div>
+
+  <div class="pannello">
+    <div class="sezione-titolo">20 punti lungo la costa</div>
+    <p class="didascalia-aggiornamento" id="didascalia-griglia">Caricamento…</p>
+    <div class="lista-punti" id="lista-punti"><div class="messaggio-stato">Caricamento…</div></div>
+  </div>
+</main>
+
+<div id="schermata-login" class="schermata-login">
+  <div class="scheda-login">
+    <h2>Accesso riservato</h2>
+    <p>Croazia — solo staff autorizzato</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <button id="login-bottone">Accedi</button>
+    <p id="login-errore" class="login-errore"></p>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
+  authDomain: "app-segnalazioni-omnia-roseto.firebaseapp.com",
+  databaseURL: "https://app-segnalazioni-omnia-roseto-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "app-segnalazioni-omnia-roseto",
+  storageBucket: "app-segnalazioni-omnia-roseto.firebasestorage.app",
+  messagingSenderId: "699028105579",
+  appId: "1:699028105579:web:cdc0a432083b7fe18d442e",
+  measurementId: "G-M3PSWKEYCJ",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+const auth = getAuth(app);
+
+let mappaCroazia = null;
+
+function inizializzaMappa() {
+  if (mappaCroazia) return;
+  mappaCroazia = L.map("mappa-croazia", { zoomControl: true, attributionControl: false }).setView([43.8, 16.2], 7);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    subdomains: "abc", maxZoom: 9, className: "livello-mappa-scuro",
+  }).addTo(mappaCroazia);
+}
+
+function coloreVento(nodi) {
+  if (nodi === null || nodi === undefined) return "#4C6870";
+  if (nodi < 5) return "#E8F0EE";
+  if (nodi < 10) return "#7FC4D8";
+  if (nodi < 15) return "#2F9E44";
+  if (nodi < 20) return "#F0B429";
+  if (nodi < 25) return "#E0393E";
+  return "#B0189E";
+}
+
+function iconaVento(direzioneGradi, ventoNodi) {
+  const colore = coloreVento(ventoNodi);
+  // direzioneGradi è "da dove viene" il vento; la freccia deve puntare verso
+  // dove soffia, quindi si ruota di +180°.
+  const rotazione = direzioneGradi !== null && direzioneGradi !== undefined ? (direzioneGradi + 180) % 360 : 0;
+  return L.divIcon({
+    className: "",
+    html: `<div style="transform: rotate(${rotazione}deg); width:26px; height:26px;">
+      <svg viewBox="0 0 24 24" width="26" height="26">
+        <path d="M12 2 L18 15 L12 11.5 L6 15 Z" fill="${colore}" stroke="#0A1C24" stroke-width="1"/>
+      </svg>
+    </div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}
+
+function formattaValore(valore, unita, decimali = 1) {
+  if (valore === null || valore === undefined) return "n/d";
+  return `${valore.toFixed(decimali)}${unita}`;
+}
+
+// Ogni punto ha un array di previsioni orarie sulle prossime 72h — qui
+// prendiamo solo l'ora più vicina ad "adesso", per mostrare il quadro
+// attuale su mappa e schede.
+function oraAttuale(orario) {
+  if (!Array.isArray(orario) || orario.length === 0) return null;
+  const adesso = Date.now();
+  let scelta = orario[0];
+  let differenzaMinima = Infinity;
+  for (const o of orario) {
+    const diff = Math.abs(new Date(o.ora).getTime() - adesso);
+    if (diff < differenzaMinima) { differenzaMinima = diff; scelta = o; }
+  }
+  return scelta;
+}
+
+async function caricaGriglia() {
+  const contenitoreLista = document.getElementById("lista-punti");
+  const didascalia = document.getElementById("didascalia-griglia");
+
+  try {
+    const snap = await getDoc(doc(db, "meteoCroazia", "ultima"));
+    if (!snap.exists()) {
+      contenitoreLista.innerHTML = `<div class="messaggio-stato">Nessun dato ancora disponibile — la prima raccolta parte entro 30 minuti.</div>`;
+      return;
+    }
+
+    const dati = snap.data();
+    const oraAggiornamento = new Date(dati.generatoIl).toLocaleString("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+    didascalia.textContent = `Ultimo aggiornamento: ${oraAggiornamento} — ${dati.punti.length} punti.`;
+
+    const puntiConOraAttuale = dati.punti.map((p) => ({ ...p, adesso: oraAttuale(p.orario) })).filter((p) => p.adesso);
+
+    contenitoreLista.innerHTML = puntiConOraAttuale.map((p) => `
+      <div class="scheda-punto" data-lat="${p.lat}" data-lon="${p.lon}" data-nome="${p.nome}">
+        <div class="nome-punto">${p.nome}</div>
+        <div class="riga-dato"><span>Vento</span><span>${formattaValore(p.adesso.vento_consenso_nodi, " kn")}</span></div>
+        <div class="riga-dato"><span>Raffica</span><span>${formattaValore(p.adesso.raffica_max_nodi, " kn")}</span></div>
+        <div class="riga-dato"><span>Pioggia</span><span>${p.adesso.probabilita_pioggia_perc !== null && p.adesso.probabilita_pioggia_perc !== undefined ? p.adesso.probabilita_pioggia_perc + "%" : "n/d"}</span></div>
+        <div class="riga-dato"><span>Temp.</span><span>${formattaValore(p.adesso.temperatura_media, "°C", 0)}</span></div>
+      </div>
+    `).join("");
+
+    puntiConOraAttuale.forEach((p) => {
+      if (p.lat === undefined || p.lon === undefined) return;
+      const popup = `
+        <b>${p.nome}</b><br>
+        Vento: ${formattaValore(p.adesso.vento_consenso_nodi, " kn")} · Raffica: ${formattaValore(p.adesso.raffica_max_nodi, " kn")}<br>
+        Pioggia: ${p.adesso.probabilita_pioggia_perc !== null && p.adesso.probabilita_pioggia_perc !== undefined ? p.adesso.probabilita_pioggia_perc + "%" : "n/d"}<br>
+        Temperatura: ${formattaValore(p.adesso.temperatura_media, "°C", 0)}
+      `;
+      L.marker([p.lat, p.lon], { icon: iconaVento(p.adesso.direzione_consenso_gradi, p.adesso.vento_consenso_nodi) })
+        .addTo(mappaCroazia)
+        .bindPopup(popup);
+    });
+
+    contenitoreLista.querySelectorAll(".scheda-punto").forEach((scheda) => {
+      scheda.addEventListener("click", () => {
+        const lat = parseFloat(scheda.getAttribute("data-lat"));
+        const lon = parseFloat(scheda.getAttribute("data-lon"));
+        if (mappaCroazia) mappaCroazia.setView([lat, lon], 9);
+      });
+    });
+  } catch (errore) {
+    contenitoreLista.innerHTML = `<div class="messaggio-stato">Errore nel caricamento: ${errore.message}</div>`;
+  }
+}
+
+// --- RADAR PIOGGIA — tutta la costa croata, stessa fonte (RainViewer) della plancia ---
+let mappaRadarPagina = null;
+let livelloRadarPaginaAttuale = null;
+let timerAnimazioneRadarPagina = null;
+let framesRadarPagina = [];
+let numeroFrameNowcastPagina = 0;
+let hostRadarPagina = "";
+let posizioneAnimazionePagina = 0;
+
+function formattaOrarioRadar(timestampUnix) {
+  return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" }).format(new Date(timestampUnix * 1000));
+}
+
+function mostraFrameRadarPagina(indice) {
+  if (!mappaRadarPagina || !framesRadarPagina[indice]) return;
+  posizioneAnimazionePagina = indice;
+  const frame = framesRadarPagina[indice];
+
+  if (livelloRadarPaginaAttuale) mappaRadarPagina.removeLayer(livelloRadarPaginaAttuale);
+  livelloRadarPaginaAttuale = L.tileLayer(`${hostRadarPagina}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.75, zIndex: 5, maxNativeZoom: 7 });
+  livelloRadarPaginaAttuale.addTo(mappaRadarPagina);
+
+  const eFuturo = indice >= framesRadarPagina.length - numeroFrameNowcastPagina;
+  const testoTempo = document.getElementById("radar-hrpag-tempo");
+  if (testoTempo) testoTempo.textContent = `${formattaOrarioRadar(frame.time)} (${eFuturo ? "nowcast" : "osservato"})`;
+}
+
+function spostaFrameRadarPagina(delta) {
+  let nuova = posizioneAnimazionePagina + delta;
+  if (nuova < 0) nuova = framesRadarPagina.length - 1;
+  if (nuova >= framesRadarPagina.length) nuova = 0;
+  mostraFrameRadarPagina(nuova);
+}
+
+function fermaAnimazioneRadarPagina() {
+  if (timerAnimazioneRadarPagina) {
+    clearInterval(timerAnimazioneRadarPagina);
+    timerAnimazioneRadarPagina = null;
+    const bottone = document.getElementById("radar-hrpag-play");
+    if (bottone) bottone.textContent = "▶";
+  }
+}
+
+function alternaAnimazioneRadarPagina() {
+  if (timerAnimazioneRadarPagina) {
+    fermaAnimazioneRadarPagina();
+  } else {
+    const bottone = document.getElementById("radar-hrpag-play");
+    if (bottone) bottone.textContent = "⏸";
+    timerAnimazioneRadarPagina = setInterval(() => spostaFrameRadarPagina(1), 600);
+  }
+}
+
+function inizializzaRadarPagina() {
+  if (mappaRadarPagina) return;
+  const contenitore = document.getElementById("mappa-radar-croazia-pagina");
+  if (!contenitore || typeof L === "undefined") return;
+
+  // Zoom più basso e centro più a Nord rispetto al pannello nella plancia:
+  // qui vogliamo vedere TUTTA la costa, non solo Spalato.
+  mappaRadarPagina = L.map("mappa-radar-croazia-pagina", { zoomControl: true, attributionControl: false }).setView([44.2, 15.8], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 7, className: "livello-mappa-scuro" }).addTo(mappaRadarPagina);
+
+  fetch("https://api.rainviewer.com/public/weather-maps.json")
+    .then((r) => r.json())
+    .then((dati) => {
+      hostRadarPagina = dati.host;
+      const passati = dati.radar?.past || [];
+      const nowcast = dati.radar?.nowcast || [];
+      framesRadarPagina = [...passati, ...nowcast];
+      numeroFrameNowcastPagina = nowcast.length;
+      mostraFrameRadarPagina(passati.length > 0 ? passati.length - 1 : 0);
+    })
+    .catch(() => {
+      const testoTempo = document.getElementById("radar-hrpag-tempo");
+      if (testoTempo) testoTempo.textContent = "radar non disponibile al momento";
+    });
+
+  document.getElementById("radar-hrpag-play")?.addEventListener("click", alternaAnimazioneRadarPagina);
+  document.getElementById("radar-hrpag-prev")?.addEventListener("click", () => { fermaAnimazioneRadarPagina(); spostaFrameRadarPagina(-1); });
+  document.getElementById("radar-hrpag-next")?.addEventListener("click", () => { fermaAnimazioneRadarPagina(); spostaFrameRadarPagina(1); });
+}
+
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+onAuthStateChanged(auth, (utente) => {
+  document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("contenuto-principale").style.display = utente ? "block" : "none";
+  if (utente) {
+    inizializzaMappa();
+    caricaGriglia();
+    inizializzaRadarPagina();
+  }
+});
+
+document.getElementById("login-bottone").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const erroreEl = document.getElementById("login-errore");
+  erroreEl.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (errore) {
+    erroreEl.textContent = "Email o password non corretti.";
+  }
+});
+
+document.getElementById("login-password").addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") document.getElementById("login-bottone").click();
+});
+
+// --- NAV SCORREVOLE: nasconde la sfumatura a destra a fine scroll ---------
+(() => {
+  const contenitore = document.getElementById("barra-link-contenitore");
+  const barra = document.getElementById("barra-link");
+  if (!contenitore || !barra) return;
+  const aggiornaFade = () => {
+    const fineRaggiunta = barra.scrollLeft + barra.clientWidth >= barra.scrollWidth - 2;
+    contenitore.classList.toggle("fine-scroll", fineRaggiunta);
+  };
+  barra.addEventListener("scroll", aggiornaFade);
+  window.addEventListener("resize", aggiornaFade);
+  aggiornaFade();
+})();
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  }
+</script>
+
+</body>
+</html>
