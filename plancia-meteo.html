@@ -537,6 +537,14 @@
     background: #0d222b;
   }
 
+  #mappa-radar-croazia {
+    width: 100%;
+    height: 320px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #0d222b;
+  }
+
   .radar-controlli {
     display: flex;
     align-items: center;
@@ -900,6 +908,10 @@ let framesRadar = [];
 let numeroFrameNowcastRadar = 0;
 let posizioneAnimazioneRadar = 0;
 let hostRadar = "";
+let mappaRadarCroazia = null;
+let livelloRadarCroaziaAttuale = null;
+let timerAnimazioneRadarCroazia = null;
+let posizioneAnimazioneRadarCroazia = 0;
 let puntoSelezionato = "roseto_nord";
 let grafico = null;
 let uvMaxOggiGlobale = null;
@@ -1293,6 +1305,28 @@ function renderTutto() {
       <p class="satellite-nota">Radar RainViewer: le ultime 2 ore sono dato osservato, i fotogrammi in <span style="color:var(--brass)">ottone</span> sono nowcast (previsione a brevissimo termine per estrapolazione del movimento). Il cerchio tratteggiato e i puntini color ottone mostrano il raggio di 40km e le 8 sentinelle che il sistema monitora per i fronti in avvicinamento — tutto ciò che è già dentro quel cerchio o che si forma rapidamente non viene intercettato in anticipo da quel meccanismo.</p>
       ${notaComunitaria()}
     </div>
+    <div class="pannello-radar">
+      <div class="sezione-titolo"><span>📡 Radar Croazia — Spalato</span></div>
+      <div style="position:relative;">
+        <div id="mappa-radar-croazia"></div>
+      </div>
+      <div class="radar-controlli">
+        <button class="radar-bottone" id="radar-hr-prev">‹</button>
+        <button class="radar-bottone" id="radar-hr-play">▶</button>
+        <button class="radar-bottone" id="radar-hr-next">›</button>
+        <span class="radar-tempo" id="radar-hr-tempo">caricamento radar...</span>
+      </div>
+      <div class="legenda-intensita-pioggia">
+        <div class="barra-legenda-pioggia"></div>
+        <div class="etichette-legenda-pioggia">
+          <span>Leggero</span>
+          <span>Moderato</span>
+          <span>Forte</span>
+          <span>Tormenta</span>
+        </div>
+      </div>
+      <p class="satellite-nota">Stessa fonte radar (RainViewer) usata sopra per Roseto/Pineto, centrata su Spalato — nessuna sentinella qui, è solo per riferimento personale durante il viaggio, non fa parte del monitoraggio di sicurezza.</p>
+    </div>
     <div class="pannello-satellite">
       <div class="sezione-titolo"><span>🛰️ Satellite Adriatico centrale</span></div>
       <img
@@ -1315,6 +1349,7 @@ function renderTutto() {
   });
 
   inizializzaRadar();
+  inizializzaRadarCroazia();
   aggiornaFrecciaVentoSuRadar();
 
   document.querySelectorAll("[data-punto]").forEach((el) => {
@@ -1442,6 +1477,77 @@ function alternaAnimazioneRadar() {
   }
 }
 
+// --- RADAR CROAZIA (Spalato) — riferimento personale, non di sicurezza ----
+// Stessa fonte (RainViewer) e stessa lista di fotogrammi già scaricata per
+// Roseto qui sopra (framesRadar/hostRadar sono globali, RainViewer copre
+// tutto il mondo) — nessuna seconda chiamata di rete, solo una seconda
+// mappa Leaflet centrata altrove.
+function mostraFrameRadarCroazia(indice) {
+  if (!mappaRadarCroazia || !framesRadar[indice]) return;
+  posizioneAnimazioneRadarCroazia = indice;
+  const frame = framesRadar[indice];
+
+  if (livelloRadarCroaziaAttuale) mappaRadarCroazia.removeLayer(livelloRadarCroaziaAttuale);
+  livelloRadarCroaziaAttuale = L.tileLayer(`${hostRadar}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.75, zIndex: 5, maxNativeZoom: 7 });
+  livelloRadarCroaziaAttuale.addTo(mappaRadarCroazia);
+
+  const eFuturo = indice >= framesRadar.length - numeroFrameNowcastRadar;
+  const etichetta = eFuturo ? "nowcast" : "osservato";
+  const testoTempo = document.getElementById("radar-hr-tempo");
+  if (testoTempo) {
+    testoTempo.innerHTML = `${formattaOrarioRadar(frame.time)} <span class="${eFuturo ? "futuro" : ""}">(${etichetta})</span>`;
+  }
+}
+
+function spostaFrameRadarCroazia(delta) {
+  let nuovaPosizione = posizioneAnimazioneRadarCroazia + delta;
+  if (nuovaPosizione < 0) nuovaPosizione = framesRadar.length - 1;
+  if (nuovaPosizione >= framesRadar.length) nuovaPosizione = 0;
+  mostraFrameRadarCroazia(nuovaPosizione);
+}
+
+function fermaAnimazioneRadarCroazia() {
+  if (timerAnimazioneRadarCroazia) {
+    clearInterval(timerAnimazioneRadarCroazia);
+    timerAnimazioneRadarCroazia = null;
+    const bottone = document.getElementById("radar-hr-play");
+    if (bottone) bottone.textContent = "▶";
+  }
+}
+
+function alternaAnimazioneRadarCroazia() {
+  if (timerAnimazioneRadarCroazia) {
+    fermaAnimazioneRadarCroazia();
+  } else {
+    const bottone = document.getElementById("radar-hr-play");
+    if (bottone) bottone.textContent = "⏸";
+    timerAnimazioneRadarCroazia = setInterval(() => spostaFrameRadarCroazia(1), 600);
+  }
+}
+
+function inizializzaRadarCroazia() {
+  fermaAnimazioneRadarCroazia();
+  if (mappaRadarCroazia) { mappaRadarCroazia.remove(); mappaRadarCroazia = null; }
+
+  const contenitore = document.getElementById("mappa-radar-croazia");
+  if (!contenitore || typeof L === "undefined") return;
+
+  mappaRadarCroazia = L.map("mappa-radar-croazia", { zoomControl: false, attributionControl: false, maxZoom: 7, minZoom: 6 }).setView([43.5081, 16.4402], 7);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 7, className: "livello-mappa-scuro" }).addTo(mappaRadarCroazia);
+  L.circleMarker([43.5081, 16.4402], { radius: 5, color: "#2F9E44" }).addTo(mappaRadarCroazia).bindTooltip("Spalato", { permanent: false, direction: "top", className: "mono" });
+
+  // Se i fotogrammi sono già stati scaricati (dalla fetch di inizializzaRadar),
+  // mostriamo subito l'ultimo osservato; altrimenti la fetch li popolerà lei
+  // stessa a fine caricamento (vedi sotto in inizializzaRadar).
+  if (framesRadar.length > 0) {
+    mostraFrameRadarCroazia(framesRadar.length - 1 - numeroFrameNowcastRadar >= 0 ? framesRadar.length - 1 - numeroFrameNowcastRadar : 0);
+  }
+
+  document.getElementById("radar-hr-play")?.addEventListener("click", alternaAnimazioneRadarCroazia);
+  document.getElementById("radar-hr-prev")?.addEventListener("click", () => { fermaAnimazioneRadarCroazia(); spostaFrameRadarCroazia(-1); });
+  document.getElementById("radar-hr-next")?.addEventListener("click", () => { fermaAnimazioneRadarCroazia(); spostaFrameRadarCroazia(1); });
+}
+
 function inizializzaRadar() {
   fermaAnimazioneRadar();
   if (mappaRadar) { mappaRadar.remove(); mappaRadar = null; }
@@ -1504,10 +1610,15 @@ function inizializzaRadar() {
       framesRadar = [...passati, ...nowcast];
       numeroFrameNowcastRadar = nowcast.length;
       mostraFrameRadar(passati.length > 0 ? passati.length - 1 : 0);
+      // Popoliamo anche il radar Croazia, ora che i fotogrammi (condivisi,
+      // stessa fonte globale) sono disponibili.
+      mostraFrameRadarCroazia(passati.length > 0 ? passati.length - 1 : 0);
     })
     .catch(() => {
       const testoTempo = document.getElementById("radar-tempo");
       if (testoTempo) testoTempo.textContent = "radar non disponibile al momento";
+      const testoTempoCroazia = document.getElementById("radar-hr-tempo");
+      if (testoTempoCroazia) testoTempoCroazia.textContent = "radar non disponibile al momento";
     });
 
   document.getElementById("radar-play")?.addEventListener("click", alternaAnimazioneRadar);
