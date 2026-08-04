@@ -392,6 +392,8 @@ async function caricaGriglia() {
         <div class="riga-dato"><span>Raffica</span><span>${formattaValore(p.adesso.raffica_max_nodi, " kn")}</span></div>
         <div class="riga-dato"><span>Pioggia</span><span>${p.adesso.probabilita_pioggia_perc !== null && p.adesso.probabilita_pioggia_perc !== undefined ? p.adesso.probabilita_pioggia_perc + "%" : "n/d"}</span></div>
         <div class="riga-dato"><span>Temp.</span><span>${formattaValore(p.adesso.temperatura_media, "°C", 0)}</span></div>
+        <div class="riga-dato"><span>Onda</span><span>${p.mareAttuale ? formattaValore(p.mareAttuale.altezza_onda_m, " m") : "n/d"}</span></div>
+        <div class="riga-dato"><span>Mare</span><span>${p.mareAttuale ? formattaValore(p.mareAttuale.temperatura_mare_c, "°C", 1) : "n/d"}</span></div>
       </div>
     `).join("");
 
@@ -401,7 +403,8 @@ async function caricaGriglia() {
         <b>${p.nome}</b><br>
         Vento: ${formattaValore(p.adesso.vento_consenso_nodi, " kn")} · Raffica: ${formattaValore(p.adesso.raffica_max_nodi, " kn")}<br>
         Pioggia: ${p.adesso.probabilita_pioggia_perc !== null && p.adesso.probabilita_pioggia_perc !== undefined ? p.adesso.probabilita_pioggia_perc + "%" : "n/d"}<br>
-        Temperatura: ${formattaValore(p.adesso.temperatura_media, "°C", 0)}
+        Temperatura: ${formattaValore(p.adesso.temperatura_media, "°C", 0)}<br>
+        Mare: onda ${p.mareAttuale ? formattaValore(p.mareAttuale.altezza_onda_m, "m", 1) : "n/d"}, ${p.mareAttuale ? formattaValore(p.mareAttuale.temperatura_mare_c, "°C", 1) : "n/d"}${p.mareAttuale && p.mareAttuale.periodo_onda_s !== null ? `, periodo ${p.mareAttuale.periodo_onda_s.toFixed(0)}s` : ""}
       `;
       L.marker([p.lat, p.lon], { icon: iconaVento(p.adesso.direzione_consenso_gradi, p.adesso.vento_consenso_nodi) })
         .addTo(mappaCroazia)
