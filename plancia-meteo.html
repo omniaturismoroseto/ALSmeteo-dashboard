@@ -1248,7 +1248,7 @@ function disegnaGrafico(puntoId) {
   });
 }
 
-function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno, confrontoMeteoAM) {
+function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno, confrontoMeteoAM, confrontoMareCMEMS) {
   let righe = "";
   if (eventi && eventi.pioggiaInArrivo) {
     righe += `<div class="banner-riga">🌧 Pioggia in arrivo — probabilità fino al ${eventi.probabilitaPioggiaMaxPerc}% nelle prossime ore.</div>`;
@@ -1279,6 +1279,9 @@ function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno, conf
   if (confrontoMeteoAM && confrontoMeteoAM.discordanzaVento) {
     righe += `<div class="banner-riga">⚖️ Disaccordo vento tra fonti: Omnia stima ${confrontoMeteoAM.ventoSostenutoOmniaNodi.toFixed(0)} nodi sostenuti nelle prossime ore, ${confrontoMeteoAM.fonte} stima ${confrontoMeteoAM.ventoMassimoNodiEsterna.toFixed(0)} nodi.</div>`;
   }
+  if (confrontoMareCMEMS && confrontoMareCMEMS.discordanza && confrontoMareCMEMS.altezzaOndeOmniaM !== null) {
+    righe += `<div class="banner-riga">⚖️ Disaccordo altezza onda: Omnia stima ${confrontoMareCMEMS.altezzaOndeOmniaM.toFixed(1)} m adesso, ${confrontoMareCMEMS.fonte} stima ${confrontoMareCMEMS.altezzaOndaEsternaM.toFixed(1)} m.</div>`;
+  }
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
 }
 
@@ -1308,12 +1311,13 @@ function rigaSaluteFonte(nome, confronto, sogliaAvvisoMinuti) {
   return `<div class="salute-fonte-riga ${classeStato}">${icona} ${nome}: ultimo aggiornamento riuscito ${minutiFa(confronto.generatoIl)}.</div>`;
 }
 
-function renderSaluteFonti(confrontoEsterno, confrontoMeteoAM) {
+function renderSaluteFonti(confrontoEsterno, confrontoMeteoAM, confrontoMareCMEMS) {
   return `<div class="pannello-satellite">
     <div class="sezione-titolo"><span>🔌 Salute fonti esterne</span></div>
     ${rigaSaluteFonte("WeatherAPI.com", confrontoEsterno, 60)}
     ${rigaSaluteFonte("MeteoAM", confrontoMeteoAM, 120)}
-    <p class="satellite-nota" style="margin-top:0.6rem;">Solo un indicatore di salute delle fonti di secondo parere (vedi banner sopra) — non riguarda mai il consenso interno a 5 modelli, che è indipendente da questi due servizi esterni.</p>
+    ${rigaSaluteFonte("CMEMS Copernicus (onda)", confrontoMareCMEMS, 120)}
+    <p class="satellite-nota" style="margin-top:0.6rem;">Solo un indicatore di salute delle fonti di secondo parere (vedi banner sopra) — non riguarda mai il consenso interno a 5 modelli, che è indipendente da questi tre servizi esterni.</p>
   </div>`;
 }
 
@@ -1340,7 +1344,7 @@ function renderTutto() {
   }
 
   contenuto.innerHTML =
-    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti, ultimoStato.confrontoEsterno, ultimoStato.confrontoMeteoAM) +
+    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti, ultimoStato.confrontoEsterno, ultimoStato.confrontoMeteoAM, ultimoStato.confrontoMareCMEMS) +
     renderPannelloUV(ultimoStato, uvMaxOggiGlobale) +
     renderPunti(ultimoStato) +
     renderSelettoreEGrafico(ultimoStato) +
@@ -1388,7 +1392,7 @@ function renderTutto() {
         <button id="satellite-aggiorna" style="margin-left:0.5rem; background:none; border:1px solid var(--line); color:var(--brass); border-radius:4px; padding:0.1rem 0.5rem; cursor:pointer; font-size:0.68rem;">↻ aggiorna</button>
       </p>
     </div>
-    ${renderSaluteFonti(ultimoStato.confrontoEsterno, ultimoStato.confrontoMeteoAM)}`;
+    ${renderSaluteFonti(ultimoStato.confrontoEsterno, ultimoStato.confrontoMeteoAM, ultimoStato.confrontoMareCMEMS)}`;
 
   document.getElementById("satellite-aggiorna")?.addEventListener("click", () => {
     const img = document.getElementById("satellite-immagine");
