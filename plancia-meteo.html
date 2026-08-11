@@ -417,6 +417,14 @@
     margin-bottom: 2rem;
   }
 
+  .pannello-windy {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    margin-bottom: 2rem;
+  }
+
   .pannello-uv {
     background: var(--bg-panel);
     border: 1px solid var(--line);
@@ -841,6 +849,20 @@
 <main>
   <div id="contenuto">
     <div class="messaggio-stato">Caricamento dati in corso...</div>
+  </div>
+
+  <div class="pannello-windy">
+    <div class="sezione-titolo"><span>🌬️🌊 Windy — Roseto / Pineto</span></div>
+    <iframe
+      id="iframe-windy"
+      title="Windy — vento, mare e altri livelli, Roseto/Pineto"
+      width="100%"
+      height="450"
+      style="border:1px solid var(--line); border-radius:8px;"
+      src="https://embed.windy.com/embed2.html?lat=42.685&lon=14.015&detailLat=42.685&detailLon=14.015&width=650&height=450&zoom=9&level=surface&overlay=wind&product=ecmwf&menu=true&message=true&marker=true&calendar=now&pressure=false&type=map&location=coordinates&detail=false&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"
+      loading="lazy"
+    ></iframe>
+    <p class="satellite-nota" style="margin-top:0.6rem;">Usa il menu in alto a sinistra dentro la mappa per passare da "vento" a "onde"/"mare"/altri livelli — servizio esterno (Windy.com), non elaborato da noi. Centrato su Roseto Nord.</p>
   </div>
 </main>
 
