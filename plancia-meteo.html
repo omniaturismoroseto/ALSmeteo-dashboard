@@ -1209,7 +1209,7 @@ function disegnaGrafico(puntoId) {
   });
 }
 
-function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno) {
+function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno, confrontoMeteoAM) {
   let righe = "";
   if (eventi && eventi.pioggiaInArrivo) {
     righe += `<div class="banner-riga">🌧 Pioggia in arrivo — probabilità fino al ${eventi.probabilitaPioggiaMaxPerc}% nelle prossime ore.</div>`;
@@ -1233,6 +1233,9 @@ function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno) {
   }
   if (confrontoEsterno && confrontoEsterno.discordanza) {
     righe += `<div class="banner-riga">⚖️ Disaccordo tra fonti: Omnia stima ${confrontoEsterno.probabilitaOmniaPerc}% di probabilità pioggia nelle prossime ore, ${confrontoEsterno.fonte} stima ${confrontoEsterno.probabilitaEsternaPerc}% — vale la pena tenere d'occhio il radar qui sotto.</div>`;
+  }
+  if (confrontoMeteoAM && confrontoMeteoAM.discordanza) {
+    righe += `<div class="banner-riga">⚖️ Disaccordo tra fonti: Omnia stima ${confrontoMeteoAM.probabilitaOmniaPerc}% di probabilità pioggia nelle prossime ore, ${confrontoMeteoAM.fonte} stima ${confrontoMeteoAM.probabilitaEsternaPerc}% — vale la pena tenere d'occhio il radar qui sotto.</div>`;
   }
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
 }
@@ -1260,7 +1263,7 @@ function renderTutto() {
   }
 
   contenuto.innerHTML =
-    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti, ultimoStato.confrontoEsterno) +
+    renderBannerEventi(ultimoStato.eventi, ultimoStato.tendenzeMare, ultimoStato.fronti, ultimoStato.confrontoEsterno, ultimoStato.confrontoMeteoAM) +
     renderPannelloUV(ultimoStato, uvMaxOggiGlobale) +
     renderPunti(ultimoStato) +
     renderSelettoreEGrafico(ultimoStato) +
