@@ -417,6 +417,23 @@
     margin-bottom: 2rem;
   }
 
+  .salute-fonte-riga {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    margin-bottom: 0.4rem;
+  }
+
+  .salute-fonte-ok {
+    background: var(--flag-verde-bg);
+    color: var(--flag-verde);
+  }
+
+  .salute-fonte-critica {
+    background: var(--flag-giallo-bg);
+    color: var(--flag-giallo);
+  }
+
   .pannello-windy {
     background: var(--bg-panel);
     border: 1px solid var(--line);
@@ -1259,7 +1276,45 @@ function renderBannerEventi(eventi, tendenzeMare, fronti, confrontoEsterno, conf
   if (confrontoMeteoAM && confrontoMeteoAM.discordanza) {
     righe += `<div class="banner-riga">⚖️ Disaccordo tra fonti: Omnia stima ${confrontoMeteoAM.probabilitaOmniaPerc}% di probabilità pioggia nelle prossime ore, ${confrontoMeteoAM.fonte} stima ${confrontoMeteoAM.probabilitaEsternaPerc}% — vale la pena tenere d'occhio il radar qui sotto.</div>`;
   }
+  if (confrontoMeteoAM && confrontoMeteoAM.discordanzaVento) {
+    righe += `<div class="banner-riga">⚖️ Disaccordo vento tra fonti: Omnia stima ${confrontoMeteoAM.ventoSostenutoOmniaNodi.toFixed(0)} nodi sostenuti nelle prossime ore, ${confrontoMeteoAM.fonte} stima ${confrontoMeteoAM.ventoMassimoNodiEsterna.toFixed(0)} nodi.</div>`;
+  }
   return righe ? `<div class="banner-eventi">${righe}</div>` : "";
+}
+
+// Pannello "salute fonti esterne": mostra da quanto tempo ciascuna fonte
+// (WeatherAPI, MeteoAM) ha risposto con successo l'ultima volta. Legge
+// direttamente da confrontoEsterno/confrontoMeteoAM già presenti in
+// ultimoStato — nessuna lettura Firestore aggiuntiva, nessuna regola di
+// sicurezza nuova da configurare.
+// Se il campo è null (fetch fallito all'ultima rilevazione, o cache appena
+// scaduta e nuovo tentativo non ancora riuscito), mostra un avviso — ma è
+// normale vederlo occasionalmente: il vero problema è se resta così per
+// molte rilevazioni di fila.
+function minutiFa(isoString) {
+  const minuti = Math.round((Date.now() - new Date(isoString).getTime()) / 60000);
+  if (minuti < 1) return "meno di 1 minuto fa";
+  if (minuti === 1) return "1 minuto fa";
+  return `${minuti} minuti fa`;
+}
+
+function rigaSaluteFonte(nome, confronto, sogliaAvvisoMinuti) {
+  if (!confronto || !confronto.generatoIl) {
+    return `<div class="salute-fonte-riga salute-fonte-critica">⚠️ ${nome}: dato non disponibile all'ultima rilevazione.</div>`;
+  }
+  const minuti = Math.round((Date.now() - new Date(confronto.generatoIl).getTime()) / 60000);
+  const classeStato = minuti > sogliaAvvisoMinuti ? "salute-fonte-critica" : "salute-fonte-ok";
+  const icona = minuti > sogliaAvvisoMinuti ? "⚠️" : "✓";
+  return `<div class="salute-fonte-riga ${classeStato}">${icona} ${nome}: ultimo aggiornamento riuscito ${minutiFa(confronto.generatoIl)}.</div>`;
+}
+
+function renderSaluteFonti(confrontoEsterno, confrontoMeteoAM) {
+  return `<div class="pannello-satellite">
+    <div class="sezione-titolo"><span>🔌 Salute fonti esterne</span></div>
+    ${rigaSaluteFonte("WeatherAPI.com", confrontoEsterno, 60)}
+    ${rigaSaluteFonte("MeteoAM", confrontoMeteoAM, 120)}
+    <p class="satellite-nota" style="margin-top:0.6rem;">Solo un indicatore di salute delle fonti di secondo parere (vedi banner sopra) — non riguarda mai il consenso interno a 5 modelli, che è indipendente da questi due servizi esterni.</p>
+  </div>`;
 }
 
 
@@ -1332,7 +1387,8 @@ function renderTutto() {
         Canale infrarosso (10.5 µm) del satellite Meteosat di nuova generazione — funziona sia di giorno sia di notte, a differenza dell'immagine "a colori naturali" che di notte è nera. Le nubi più bianche/luminose sono quelle più alte e fredde, tipicamente i temporali. Aggiornamento ogni 10 minuti.
         <button id="satellite-aggiorna" style="margin-left:0.5rem; background:none; border:1px solid var(--line); color:var(--brass); border-radius:4px; padding:0.1rem 0.5rem; cursor:pointer; font-size:0.68rem;">↻ aggiorna</button>
       </p>
-    </div>`;
+    </div>
+    ${renderSaluteFonti(ultimoStato.confrontoEsterno, ultimoStato.confrontoMeteoAM)}`;
 
   document.getElementById("satellite-aggiorna")?.addEventListener("click", () => {
     const img = document.getElementById("satellite-immagine");
