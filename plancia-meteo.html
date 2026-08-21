@@ -1402,7 +1402,7 @@ function renderTutto() {
           id="satellite-immagine"
           class="satellite-immagine"
           alt="Immagine satellite infrarosso — Adriatico centrale"
-          src="https://view.eumetsat.int/geoserver/wms?service=WMS&amp;version=1.3.0&amp;request=GetMap&amp;layers=mtg_fd:ir105_hrfi&amp;styles=mtg_fd:mtg_fd_ir105_hrfi_style_01&amp;crs=CRS:84&amp;bbox=12,40,18,45&amp;width=720&amp;height=600&amp;format=image/png"
+          src="${urlSatelliteEumetsat()}"
           onerror="this.onerror=null; this.src=this.src.replace('mtg_fd:mtg_fd_ir105_hrfi_style_01','mtg_fd:mtg_fd_ir105_hrfi_grayscale');"
           onload="posizionaPallinoSatelliteRoseto()"
         >
@@ -1798,6 +1798,23 @@ elInviaMessaggioLidi.addEventListener("click", async () => {
 // volta che la larghezza del pannello cambia (resize, mobile/desktop).
 const SATELLITE_BBOX = { lonMin: 12, lonMax: 18, latMin: 40, latMax: 45 };
 const ROSETO_LAT = 42.68, ROSETO_LON = 14.0; // stesso riferimento usato per il marker "Roseto/Pineto" sul radar
+
+// EUMETSAT risponde con "cache-control: max-age=604800" (7 giorni) sullo
+// stesso indirizzo esatto — senza un parametro che cambia, il browser non
+// ririchiede mai l'immagine da solo (la pesca sempre dalla propria cache),
+// anche se renderTutto() ricrea il tag <img> ogni 5 minuti. Aggiungendo un
+// numero legato ai 10 minuti correnti (la vera cadenza di aggiornamento
+// EUMETSAT, vedi testo del pannello), l'indirizzo cambia automaticamente
+// una volta ogni 10 minuti — abbastanza per restare aggiornati, non così
+// spesso da scaricare immagini identiche inutilmente ad ogni render.
+function urlSatelliteEumetsat() {
+  const blocco10min = Math.floor(Date.now() / (10 * 60 * 1000));
+  return (
+    "https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.3.0&request=GetMap" +
+    "&layers=mtg_fd:ir105_hrfi&styles=mtg_fd:mtg_fd_ir105_hrfi_style_01&crs=CRS:84" +
+    `&bbox=12,40,18,45&width=720&height=600&format=image/png&_=${blocco10min}`
+  );
+}
 
 function posizionaPallinoSatelliteRoseto() {
   const img = document.getElementById("satellite-immagine");
