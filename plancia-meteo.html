@@ -540,6 +540,23 @@
     display: block;
   }
 
+  .satellite-wrapper {
+    position: relative;
+  }
+
+  .satellite-pallino-roseto {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--flag-verde);
+    border: 2px solid #fff;
+    box-shadow: 0 0 4px rgba(0,0,0,0.7);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    display: none;
+  }
+
   .satellite-nota {
     font-size: 0.68rem;
     color: var(--ink-faint);
@@ -1380,13 +1397,17 @@ function renderTutto() {
     </div>
     <div class="pannello-satellite">
       <div class="sezione-titolo"><span>🛰️ Satellite Adriatico centrale</span></div>
-      <img
-        id="satellite-immagine"
-        class="satellite-immagine"
-        alt="Immagine satellite infrarosso — Adriatico centrale"
-        src="https://view.eumetsat.int/geoserver/wms?service=WMS&amp;version=1.3.0&amp;request=GetMap&amp;layers=mtg_fd:ir105_hrfi&amp;styles=mtg_fd:mtg_fd_ir105_hrfi_style_01&amp;crs=CRS:84&amp;bbox=12,40,18,45&amp;width=720&amp;height=600&amp;format=image/png"
-        onerror="this.onerror=null; this.src=this.src.replace('mtg_fd:mtg_fd_ir105_hrfi_style_01','mtg_fd:mtg_fd_ir105_hrfi_grayscale');"
-      >
+      <div class="satellite-wrapper">
+        <img
+          id="satellite-immagine"
+          class="satellite-immagine"
+          alt="Immagine satellite infrarosso — Adriatico centrale"
+          src="https://view.eumetsat.int/geoserver/wms?service=WMS&amp;version=1.3.0&amp;request=GetMap&amp;layers=mtg_fd:ir105_hrfi&amp;styles=mtg_fd:mtg_fd_ir105_hrfi_style_01&amp;crs=CRS:84&amp;bbox=12,40,18,45&amp;width=720&amp;height=600&amp;format=image/png"
+          onerror="this.onerror=null; this.src=this.src.replace('mtg_fd:mtg_fd_ir105_hrfi_style_01','mtg_fd:mtg_fd_ir105_hrfi_grayscale');"
+          onload="posizionaPallinoSatelliteRoseto()"
+        >
+        <div id="satellite-pallino-roseto" class="satellite-pallino-roseto" title="Roseto degli Abruzzi"></div>
+      </div>
       <p class="satellite-nota">
         Canale infrarosso (10.5 µm) del satellite Meteosat di nuova generazione — funziona sia di giorno sia di notte, a differenza dell'immagine "a colori naturali" che di notte è nera. Le nubi più bianche/luminose sono quelle più alte e fredde, tipicamente i temporali. Aggiornamento ogni 10 minuti.
         <button id="satellite-aggiorna" style="margin-left:0.5rem; background:none; border:1px solid var(--line); color:var(--brass); border-radius:4px; padding:0.1rem 0.5rem; cursor:pointer; font-size:0.68rem;">↻ aggiorna</button>
@@ -1399,6 +1420,7 @@ function renderTutto() {
     const base = img.src.split("&_=")[0];
     img.src = `${base}&_=${Date.now()}`;
   });
+  posizionaPallinoSatelliteRoseto();
 
   inizializzaRadar();
   aggiornaFrecciaVentoSuRadar();
@@ -1765,6 +1787,39 @@ elInviaMessaggioLidi.addEventListener("click", async () => {
 
 // --- SATELLITE: il listener di refresh è agganciato dentro renderTutto(),
 // perché il bottone viene ricreato ad ogni render (innerHTML sostituito).
+
+// Pallino verde su Roseto sull'immagine satellite. L'immagine è un WMS
+// EUMETSAT con bbox geografico noto (lon 12–18, lat 40–45, vedi src sopra),
+// quindi lat/lon si convertono in pixel per proiezione lineare. Il CSS però
+// applica object-fit:cover (width:100% dinamico, height:320px fissa), che
+// ingrandisce l'immagine "naturale" e ne ritaglia il bordo in eccesso,
+// centrato — bisogna riprodurre lo stesso calcolo per capire dove cade il
+// punto DOPO il ritaglio, altrimenti il pallino sarebbe fuori posto ogni
+// volta che la larghezza del pannello cambia (resize, mobile/desktop).
+const SATELLITE_BBOX = { lonMin: 12, lonMax: 18, latMin: 40, latMax: 45 };
+const ROSETO_LAT = 42.68, ROSETO_LON = 14.0; // stesso riferimento usato per il marker "Roseto/Pineto" sul radar
+
+function posizionaPallinoSatelliteRoseto() {
+  const img = document.getElementById("satellite-immagine");
+  const pallino = document.getElementById("satellite-pallino-roseto");
+  if (!img || !pallino || !img.naturalWidth || !img.naturalHeight) return;
+
+  const cw = img.clientWidth, ch = img.clientHeight;
+  if (!cw || !ch) return;
+
+  const puntoXNaturale = ((ROSETO_LON - SATELLITE_BBOX.lonMin) / (SATELLITE_BBOX.lonMax - SATELLITE_BBOX.lonMin)) * img.naturalWidth;
+  const puntoYNaturale = ((SATELLITE_BBOX.latMax - ROSETO_LAT) / (SATELLITE_BBOX.latMax - SATELLITE_BBOX.latMin)) * img.naturalHeight;
+
+  const scala = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+  const scartoX = (img.naturalWidth * scala - cw) / 2;
+  const scartoY = (img.naturalHeight * scala - ch) / 2;
+
+  pallino.style.left = `${puntoXNaturale * scala - scartoX}px`;
+  pallino.style.top = `${puntoYNaturale * scala - scartoY}px`;
+  pallino.style.display = "block";
+}
+
+window.addEventListener("resize", () => posizionaPallinoSatelliteRoseto());
 
 onAuthStateChanged(auth, (utente) => {
   const schermataLogin = document.getElementById("schermata-login");
