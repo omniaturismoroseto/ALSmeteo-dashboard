@@ -1403,8 +1403,6 @@ function renderTutto() {
           class="satellite-immagine"
           alt="Immagine satellite infrarosso — Adriatico centrale"
           src="${urlSatelliteEumetsat()}"
-          onerror="this.onerror=null; this.src=this.src.replace('mtg_fd:mtg_fd_ir105_hrfi_style_01','mtg_fd:mtg_fd_ir105_hrfi_grayscale');"
-          onload="posizionaPallinoSatelliteRoseto()"
         >
         <div id="satellite-pallino-roseto" class="satellite-pallino-roseto" title="Roseto degli Abruzzi"></div>
       </div>
@@ -1420,6 +1418,21 @@ function renderTutto() {
     const base = img.src.split("&_=")[0];
     img.src = `${base}&_=${Date.now()}`;
   });
+
+  // Agganciati qui via addEventListener invece che con onload/onerror come
+  // attributo HTML: lo script della pagina è "type=module", quindi le
+  // funzioni definite qui dentro NON diventano globali — un onload="..."
+  // scritto come attributo HTML le cerca nello scope globale e fallisce con
+  // un ReferenceError silenzioso (visibile solo nella console sviluppatore),
+  // che è esattamente il motivo per cui il puntino non compariva mai.
+  const immagineSatellite = document.getElementById("satellite-immagine");
+  if (immagineSatellite) {
+    immagineSatellite.addEventListener("load", posizionaPallinoSatelliteRoseto);
+    immagineSatellite.addEventListener("error", function alFallimento() {
+      this.removeEventListener("error", alFallimento);
+      this.src = this.src.replace("mtg_fd:mtg_fd_ir105_hrfi_style_01", "mtg_fd:mtg_fd_ir105_hrfi_grayscale");
+    });
+  }
   posizionaPallinoSatelliteRoseto();
 
   inizializzaRadar();
