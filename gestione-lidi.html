@@ -79,6 +79,20 @@
   .telefono-mancante { color: var(--flag-rosso); font-weight: 600; }
   button.btn-azione:disabled { opacity: 0.5; cursor: default; }
 
+  .riga-stagione { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .badge-stato {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; font-weight: 600;
+    padding: 0.28rem 0.65rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .badge-attivo { background: var(--flag-verde); color: #0A1C24; }
+  .badge-sospeso { background: var(--bg-panel-raised); color: var(--ink-muted); border: 1px solid var(--line); }
+  .motivo-stagione { font-size: 0.82rem; color: var(--ink); }
+  .dettaglio-stagione { font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.45rem; line-height: 1.5; }
+  .azioni-stagione { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+  .btn-calendario { background: var(--bg-panel-raised); color: var(--ink); border: 1px solid var(--line); }
+  .btn-sospendi { background: var(--flag-giallo); color: #1A1206; }
+  .btn-riattiva { background: var(--flag-verde); color: #0A1C24; }
+
   .schermata-login {
     position: fixed; inset: 0; background: var(--bg-abyss);
     display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1.25rem;
@@ -116,6 +130,11 @@
 </header>
 
 <main id="contenuto-principale" style="display:none;">
+  <div class="pannello">
+    <div class="sezione-titolo">Stato del servizio</div>
+    <div id="stato-stagione"><div class="messaggio-stato">Caricamento…</div></div>
+  </div>
+
   <div class="pannello">
     <div class="sezione-titolo">Richieste in attesa</div>
     <div id="lista-richieste"><div class="messaggio-stato">Caricamento…</div></div>
@@ -159,6 +178,16 @@ const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 const auth = getAuth(app);
 
 const URL_FUNZIONE = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/gestisciRichiestaLido";
+const URL_STAGIONE = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfunctions.net/configuraStagione";
+
+const MESI_ESTESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+
+function dataLeggibile(meseGiorno) {
+  const [mese, giorno] = String(meseGiorno || "").split("-");
+  const indice = parseInt(mese, 10) - 1;
+  if (Number.isNaN(indice) || !MESI_ESTESI[indice]) return meseGiorno || "—";
+  return `${parseInt(giorno, 10)} ${MESI_ESTESI[indice]}`;
+}
 
 async function chiamaGestioneLido(chatId, azione, nomeLido, testo) {
   const idToken = await auth.currentUser.getIdToken();
@@ -172,6 +201,86 @@ async function chiamaGestioneLido(chatId, azione, nomeLido, testo) {
     throw new Error(dati.errore || `Errore ${risposta.status}`);
   }
   return risposta.json();
+}
+
+// --- Stato del servizio (pausa invernale) ----------------------------------
+// Legge e comanda `statoSistema/stagione` tramite la Cloud Function
+// configuraStagione: fuori stagione gli invii automatici (bollettino del
+// mattino, avvisi previsionali, allerte radar, alert allo staff) si fermano
+// da soli. Qui si può forzare la sospensione prima del previsto o
+// riaccendere il servizio fuori stagione, e poi tornare al calendario.
+
+async function chiamaStagione(corpo) {
+  const idToken = await auth.currentUser.getIdToken();
+  const risposta = await fetch(URL_STAGIONE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify(corpo || {}),
+  });
+  if (!risposta.ok) {
+    const dati = await risposta.json().catch(() => ({}));
+    throw new Error(dati.errore || `Errore ${risposta.status}`);
+  }
+  return risposta.json();
+}
+
+async function caricaStatoStagione() {
+  const contenitore = document.getElementById("stato-stagione");
+
+  let stato;
+  try {
+    ({ stato } = await chiamaStagione({}));
+  } catch (errore) {
+    contenitore.innerHTML = `<div class="messaggio-stato">Stato del servizio non leggibile: ${errore.message}</div>`;
+    return;
+  }
+
+  const config = stato.config || {};
+  const forzato = config.forzatura === "sospeso" || config.forzatura === "attivo";
+  const modo = forzato
+    ? `forzato a mano su "${config.forzatura}"`
+    : "segue il calendario";
+
+  contenitore.innerHTML = `
+    <div class="riga-stagione">
+      <span class="badge-stato ${stato.attivo ? "badge-attivo" : "badge-sospeso"}">${stato.attivo ? "attivo" : "sospeso"}</span>
+      <span class="motivo-stagione">${stato.motivo}</span>
+    </div>
+    <div class="dettaglio-stagione mono">
+      stagione: ${dataLeggibile(config.inizioStagione)} → ${dataLeggibile(config.fineStagione)} (ultimo giorno compreso)<br>
+      preavviso ai lidi: ${dataLeggibile(config.giornoPreavviso)} · chiusura: ${dataLeggibile(config.fineStagione)}<br>
+      modo: ${modo}
+    </div>
+    <div class="dettaglio-stagione">
+      Quando è sospeso si fermano bollettino del mattino, avvisi previsionali e allerte radar — sia ai lidi sia allo staff.
+      Restano attivi gli avvisi di sistema fermo, le nuove iscrizioni al bot e i messaggi scritti a mano da qui e dalla plancia.
+    </div>
+    <div class="azioni-stagione">
+      <button class="btn-azione btn-calendario" data-forzatura="calendario" ${forzato ? "" : "disabled"}>📅 Segui calendario</button>
+      <button class="btn-azione btn-sospendi" data-forzatura="sospeso" ${config.forzatura === "sospeso" ? "disabled" : ""}>⏸ Sospendi ora</button>
+      <button class="btn-azione btn-riattiva" data-forzatura="attivo" ${config.forzatura === "attivo" ? "disabled" : ""}>▶️ Riattiva ora</button>
+    </div>`;
+
+  contenitore.querySelectorAll(".btn-azione").forEach((bottone) => {
+    bottone.addEventListener("click", async () => {
+      const scelta = bottone.getAttribute("data-forzatura");
+      const conferme = {
+        calendario: "Tornare a seguire il calendario stagionale?",
+        sospeso: "Sospendere SUBITO tutti gli invii automatici (lidi e staff)?\n\nNessun messaggio viene mandato ai lidi: è solo l'interruttore interno.",
+        attivo: "Riattivare SUBITO gli invii automatici, anche se siamo fuori stagione?",
+      };
+      if (!confirm(conferme[scelta])) return;
+
+      contenitore.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      try {
+        await chiamaStagione({ forzatura: scelta === "calendario" ? null : scelta });
+        await caricaStatoStagione();
+      } catch (errore) {
+        alert(`Errore: ${errore.message}`);
+        await caricaStatoStagione();
+      }
+    });
+  });
 }
 
 async function caricaRichieste() {
@@ -318,6 +427,7 @@ async function caricaAttivi() {
 }
 
 async function caricaTutto() {
+  await caricaStatoStagione();
   await caricaRichieste();
   await caricaAttivi();
 }
