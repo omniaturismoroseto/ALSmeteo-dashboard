@@ -248,7 +248,10 @@ async function caricaStatoStagione() {
     </div>
     <div class="dettaglio-stagione mono">
       stagione: ${dataLeggibile(config.inizioStagione)} → ${dataLeggibile(config.fineStagione)} (ultimo giorno compreso)<br>
-      preavviso ai lidi: ${dataLeggibile(config.giornoPreavviso)} · chiusura: ${dataLeggibile(config.fineStagione)}<br>
+      messaggi ai lidi: ${dataLeggibile(config.giornoPreavvisoChiusura)} preavviso stop ·
+      ${dataLeggibile(config.giornoChiusura)} stop ·
+      ${dataLeggibile(config.giornoPreavvisoApertura)} preavviso ripartenza ·
+      ${dataLeggibile(config.giornoApertura)} ripartenza<br>
       modo: ${modo}
     </div>
     <div class="dettaglio-stagione">
