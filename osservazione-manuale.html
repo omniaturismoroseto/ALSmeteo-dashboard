@@ -229,12 +229,28 @@
     margin: 0.8rem 0 0 !important;
     min-height: 1em;
   }
+  #contenuto-form { position: relative; }
+  .bottone-esci {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
 
 <div id="contenuto-form" style="display:none;">
 <h1>Osservazione <span>manuale</span></h1>
+<button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
 <p class="sottotitolo">Quello che vedi tu, sul posto — serve a tarare le previsioni dell'ensemble.</p>
 <div class="barra-link-contenitore" id="barra-link-contenitore">
   <div class="barra-link" id="barra-link">
@@ -338,6 +354,7 @@ setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 onAuthStateChanged(auth, (utente) => {
   document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("btn-esci").style.display = utente ? "inline-block" : "none";
   document.getElementById("contenuto-form").style.display = utente ? "block" : "none";
 });
 
@@ -356,6 +373,8 @@ document.getElementById("login-bottone").addEventListener("click", async () => {
 document.getElementById("login-password").addEventListener("keydown", (evento) => {
   if (evento.key === "Enter") document.getElementById("login-bottone").click();
 });
+
+document.getElementById("btn-esci").addEventListener("click", () => signOut(auth));
 
 const flagsAttivi = new Set();
 document.querySelectorAll(".pillola-check").forEach((el) => {

@@ -111,12 +111,28 @@
     70% { box-shadow: 0 0 0 14px rgba(66,133,244,0); }
     100% { box-shadow: 0 0 0 0 rgba(66,133,244,0); }
   }
+  header { position: relative; }
+  .bottone-esci {
+    position: absolute;
+    top: 0.85rem;
+    right: 1rem;
+    z-index: 2;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
 
 <header>
   <h1>🇭🇷 <span>Croazia</span></h1>
+<button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
   <p class="sottotitolo">Vento, pioggia, radar — riferimento personale per il viaggio, non fa parte del monitoraggio di sicurezza di Roseto/Pineto</p>
   <div class="barra-link-contenitore" id="barra-link-contenitore">
     <div class="barra-link" id="barra-link">
@@ -512,6 +528,7 @@ setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 onAuthStateChanged(auth, (utente) => {
   document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("btn-esci").style.display = utente ? "inline-block" : "none";
   document.getElementById("contenuto-principale").style.display = utente ? "block" : "none";
   if (utente) {
     inizializzaMappa();
@@ -536,6 +553,8 @@ document.getElementById("login-bottone").addEventListener("click", async () => {
 document.getElementById("login-password").addEventListener("keydown", (evento) => {
   if (evento.key === "Enter") document.getElementById("login-bottone").click();
 });
+
+document.getElementById("btn-esci").addEventListener("click", () => signOut(auth));
 
 // --- NAV SCORREVOLE: nasconde la sfumatura a destra a fine scroll ---------
 (() => {

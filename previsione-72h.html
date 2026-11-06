@@ -255,6 +255,20 @@
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
   @media (max-width: 560px) { #mappa-previsione { height: 360px; } }
+  .bottone-esci {
+    position: absolute;
+    top: 0.85rem;
+    right: 1rem;
+    z-index: 2;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -272,6 +286,7 @@
 
 <header>
   <h1>Omnia · Previsione <span>72h</span></h1>
+<button class="bottone-esci" id="btn-esci" style="display:none;">esci</button>
   <p class="sottotitolo">Roseto/Pineto in dettaglio + costa Adriatica estesa — entrambi su 72h</p>
   <div class="barra-link-contenitore" id="barra-link-contenitore">
     <div class="barra-link" id="barra-link">
@@ -1269,6 +1284,7 @@ async function attivaVariabile(nuovaVariabile) {
 // --- Autenticazione (identico pattern delle altre pagine) ---------------------
 onAuthStateChanged(auth, (utente) => {
   document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
+  document.getElementById("btn-esci").style.display = utente ? "inline-block" : "none";
   if (utente) avviaPagina();
 });
 
@@ -1285,6 +1301,8 @@ document.getElementById("login-bottone").addEventListener("click", async () => {
     errore.textContent = "Accesso non riuscito — controlla email e password.";
   }
 });
+
+document.getElementById("btn-esci").addEventListener("click", () => signOut(auth));
 
 // --- NAV SCORREVOLE: nasconde la sfumatura a destra a fine scroll ---------
 (() => {
