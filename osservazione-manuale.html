@@ -413,16 +413,54 @@ document.getElementById("invia").addEventListener("click", async () => {
   const messaggio = document.getElementById("messaggio");
   messaggio.className = "messaggio";
 
+  // La data va controllata PRIMA di costruire l'oggetto: se il campo e'
+  // vuoto o incompleto, new Date("").toISOString() lancia RangeError. Stando
+  // fuori dal try come stava prima, l'eccezione non la prendeva nessuno: il
+  // click non faceva niente, nessun messaggio, e l'osservazione spariva
+  // senza che chi la stava inserendo se ne accorgesse.
+  const istante = new Date(campoMomento.value);
+  if (Number.isNaN(istante.getTime())) {
+    messaggio.textContent = "Manca la data e ora dell'osservazione (o non è completa).";
+    messaggio.classList.add("errore");
+    campoMomento.focus();
+    return;
+  }
+
+  // Controlli sui valori: questi numeri finiscono nella calibrazione che
+  // corregge le previsioni, quindi un 2000 battuto per sbaglio al posto di
+  // 20 sposterebbe le correzioni per tutti. Meglio fermarlo qui.
+  const vento = numeroONull(document.getElementById("vento").value);
+  const direzione = numeroONull(document.getElementById("direzione").value);
+  const onda = numeroONull(document.getElementById("onda").value);
+
+  const fuoriScala =
+    (vento !== null && (Number.isNaN(vento) || vento < 0 || vento > 120)) ? "Il vento deve stare fra 0 e 120 nodi." :
+    (direzione !== null && (Number.isNaN(direzione) || direzione < 0 || direzione > 360)) ? "La direzione deve stare fra 0 e 360 gradi." :
+    (onda !== null && (Number.isNaN(onda) || onda < 0 || onda > 15)) ? "L'altezza dell'onda deve stare fra 0 e 15 metri." :
+    null;
+  if (fuoriScala) {
+    messaggio.textContent = fuoriScala;
+    messaggio.classList.add("errore");
+    return;
+  }
+
   const osservazione = {
     punto: document.getElementById("punto").value,
-    momento: new Date(campoMomento.value).toISOString(),
-    ventoNodi: numeroONull(document.getElementById("vento").value),
-    direzioneGradi: numeroONull(document.getElementById("direzione").value),
-    altezzaOndaM: numeroONull(document.getElementById("onda").value),
+    momento: istante.toISOString(),
+    ventoNodi: vento,
+    direzioneGradi: direzione,
+    altezzaOndaM: onda,
     cielo: document.getElementById("cielo").value,
     flag: Array.from(flagsAttivi),
     note: document.getElementById("note").value.trim(),
     autore: "Marco",
+    // Chi ha inserito davvero l'osservazione. `autore` qui sopra e' fisso a
+    // "Marco" da sempre: chiunque scrivesse, risultava Marco. Non lo tocco
+    // perche' non so se qualche Cloud Function ci filtri sopra; questi due
+    // campi sono nuovi, quindi non possono rompere niente, e intanto danno
+    // la tracciabilita' che mancava.
+    autoreUid: auth.currentUser ? auth.currentUser.uid : null,
+    autoreEmail: auth.currentUser ? auth.currentUser.email : null,
     inseritoIl: serverTimestamp(),
   };
 

@@ -230,6 +230,14 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Un messaggio d'errore puo' contenere testo che non controlliamo noi:
+// anche qui niente HTML grezzo dentro innerHTML.
+function testoSicuro(valore) {
+  return String(valore == null ? "" : valore)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 const auth = getAuth(app);
 
@@ -446,7 +454,7 @@ async function caricaGriglia() {
 
     evidenziaPuntoVicino();
   } catch (errore) {
-    contenitoreLista.innerHTML = `<div class="messaggio-stato">Errore nel caricamento: ${errore.message}</div>`;
+    contenitoreLista.innerHTML = `<div class="messaggio-stato">Errore nel caricamento: ${testoSicuro(errore.message)}</div>`;
   }
 }
 
