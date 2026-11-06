@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Rete consentita a questa pagina. Serve da seconda rete di
+     sicurezza sotto all'escape dei dati: anche se un giorno ci
+     sfuggisse un'iniezione, da qui il codice non puo' caricare
+     script da fuori ne' spedire il token dello staff a un server
+     che non sia nell'elenco. Aggiungendo una fonte dati nuova
+     (API, server di tile, iframe) va aggiunta anche qui, o il
+     browser la blocca. -->
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebasedatabase.app https://marine-api.open-meteo.com; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Previsione 72h — Omnia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0A1C24">
@@ -10,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
 <style>
   :root {
     --bg-abyss: #0A1C24;
@@ -346,7 +354,7 @@
 
 <div id="stato-iniziale" class="stato-caricamento">Accedi per caricare la previsione…</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
