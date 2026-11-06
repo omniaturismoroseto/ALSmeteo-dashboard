@@ -359,6 +359,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { accessoConsentito } from "./accesso-staff.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDcLeex_9o0BqgAs2lEEXTiVYG_zRSiXQA",
@@ -1290,7 +1291,12 @@ async function attivaVariabile(nuovaVariabile) {
 }
 
 // --- Autenticazione (identico pattern delle altre pagine) ---------------------
-onAuthStateChanged(auth, (utente) => {
+onAuthStateChanged(auth, async (utente) => {
+  // Non basta essere loggati: questo progetto Firebase e' lo stesso dell'app
+  // segnalazioni, quindi "ha un account" non vuol dire "e' dello staff".
+  // Se non e' autorizzato, accessoConsentito() mostra da se' il blocco.
+  if (!(await accessoConsentito(db, auth, utente))) return;
+
   document.getElementById("schermata-login").style.display = utente ? "none" : "flex";
   document.getElementById("btn-esci").style.display = utente ? "inline-block" : "none";
   if (utente) avviaPagina();
