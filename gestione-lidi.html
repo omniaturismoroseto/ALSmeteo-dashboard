@@ -182,10 +182,34 @@ const URL_STAGIONE = "https://europe-west1-app-segnalazioni-omnia-roseto.cloudfu
 
 const MESI_ESTESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
 
+// --- SICUREZZA: nessun HTML dai dati --------------------------------------
+// nomeLido, telefono e chat_id li scrive chi si registra sul bot Telegram:
+// sono testo che arriva da fuori, non roba nostra. Infilati in innerHTML
+// cosi' come sono, un nome tipo `<img src=x onerror=...>` eseguirebbe codice
+// dentro QUESTA pagina — che ha in mano il token dello staff e le Cloud
+// Function privilegiate (approva, revoca, messaggio a tutti i lidi, sospendi
+// il servizio). Quindi ogni valore che non nasce qui dentro passa da qui.
+function testoSicuro(valore) {
+  return String(valore == null ? "" : valore)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Il nome vero di ogni lido, tenuto da parte per chat_id. Serve perche' le
+// azioni "messaggio" e "rinomina" prima rileggevano il nome dal DOM con
+// .textContent: con l'escape attivo (e anche prima, con un nome contenente
+// & o <) quel giro restituisce un testo diverso da quello salvato — es.
+// "Bagno Sole &amp; Mare" tornava come "Bagno Sole & Mare". Qui invece
+// leggiamo sempre il dato originale di Firestore.
+const nomiLidi = new Map();
+
 function dataLeggibile(meseGiorno) {
   const [mese, giorno] = String(meseGiorno || "").split("-");
   const indice = parseInt(mese, 10) - 1;
-  if (Number.isNaN(indice) || !MESI_ESTESI[indice]) return meseGiorno || "—";
+  if (Number.isNaN(indice) || !MESI_ESTESI[indice]) return testoSicuro(meseGiorno || "—");
   return `${parseInt(giorno, 10)} ${MESI_ESTESI[indice]}`;
 }
 
@@ -231,20 +255,20 @@ async function caricaStatoStagione() {
   try {
     ({ stato } = await chiamaStagione({}));
   } catch (errore) {
-    contenitore.innerHTML = `<div class="messaggio-stato">Stato del servizio non leggibile: ${errore.message}</div>`;
+    contenitore.innerHTML = `<div class="messaggio-stato">Stato del servizio non leggibile: ${testoSicuro(errore.message)}</div>`;
     return;
   }
 
   const config = stato.config || {};
   const forzato = config.forzatura === "sospeso" || config.forzatura === "attivo";
   const modo = forzato
-    ? `forzato a mano su "${config.forzatura}"`
+    ? `forzato a mano su "${testoSicuro(config.forzatura)}"`
     : "segue il calendario";
 
   contenitore.innerHTML = `
     <div class="riga-stagione">
       <span class="badge-stato ${stato.attivo ? "badge-attivo" : "badge-sospeso"}">${stato.attivo ? "attivo" : "sospeso"}</span>
-      <span class="motivo-stagione">${stato.motivo}</span>
+      <span class="motivo-stagione">${testoSicuro(stato.motivo)}</span>
     </div>
     <div class="dettaglio-stagione mono">
       stagione: ${dataLeggibile(config.inizioStagione)} → ${dataLeggibile(config.fineStagione)} (ultimo giorno compreso)<br>
@@ -297,12 +321,13 @@ async function caricaRichieste() {
 
   contenitore.innerHTML = snap.docs.map((doc) => {
     const dati = doc.data();
+    nomiLidi.set(doc.id, dati.nomeLido || "senza nome");
     return `
-      <div class="voce-lido" data-chat-id="${doc.id}">
+      <div class="voce-lido" data-chat-id="${testoSicuro(doc.id)}">
         <div class="info-lido">
-          <div class="nome-lido">${dati.nomeLido || "senza nome"}</div>
-          <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.richiestoIl ? " · " + new Date(dati.richiestoIl).toLocaleString("it-IT") : ""}</div>
-          <div class="dettaglio-lido mono">📱 ${dati.telefono || "<span class=\"telefono-mancante\">non fornito</span>"}</div>
+          <div class="nome-lido">${testoSicuro(dati.nomeLido || "senza nome")}</div>
+          <div class="dettaglio-lido mono">chat_id: ${testoSicuro(doc.id)}${dati.richiestoIl ? " · " + testoSicuro(new Date(dati.richiestoIl).toLocaleString("it-IT")) : ""}</div>
+          <div class="dettaglio-lido mono">📱 ${dati.telefono ? testoSicuro(dati.telefono) : "<span class=\"telefono-mancante\">non fornito</span>"}</div>
         </div>
         <div class="azioni-lido">
           <button class="btn-azione btn-approva" data-azione="approva">Approva</button>
@@ -316,7 +341,7 @@ async function caricaRichieste() {
       const voce = bottone.closest(".voce-lido");
       const chatId = voce.getAttribute("data-chat-id");
       const azione = bottone.getAttribute("data-azione");
-      const nomeLido = voce.querySelector(".nome-lido").textContent;
+      const nomeLido = nomiLidi.get(chatId) || "senza nome";
 
       voce.querySelectorAll("button").forEach((b) => (b.disabled = true));
       try {
@@ -341,12 +366,13 @@ async function caricaAttivi() {
 
   contenitore.innerHTML = snap.docs.map((doc) => {
     const dati = doc.data();
+    nomiLidi.set(doc.id, dati.nomeLido || "senza nome");
     return `
-      <div class="voce-lido" data-chat-id="${doc.id}">
+      <div class="voce-lido" data-chat-id="${testoSicuro(doc.id)}">
         <div class="info-lido">
-          <div class="nome-lido">${dati.nomeLido || "senza nome"}</div>
-          <div class="dettaglio-lido mono">chat_id: ${doc.id}${dati.approvatoIl ? " · attivo dal " + new Date(dati.approvatoIl).toLocaleDateString("it-IT") : ""}</div>
-          <div class="dettaglio-lido mono">📱 ${dati.telefono ? dati.telefono : "<span class=\"telefono-mancante\">non fornito</span>"}</div>
+          <div class="nome-lido">${testoSicuro(dati.nomeLido || "senza nome")}</div>
+          <div class="dettaglio-lido mono">chat_id: ${testoSicuro(doc.id)}${dati.approvatoIl ? " · attivo dal " + testoSicuro(new Date(dati.approvatoIl).toLocaleDateString("it-IT")) : ""}</div>
+          <div class="dettaglio-lido mono">📱 ${dati.telefono ? testoSicuro(dati.telefono) : "<span class=\"telefono-mancante\">non fornito</span>"}</div>
         </div>
         <div class="azioni-lido">
           <button class="btn-azione btn-messaggio" data-azione="messaggio">✉️ Messaggio</button>
@@ -364,7 +390,7 @@ async function caricaAttivi() {
       const azione = bottone.getAttribute("data-azione");
 
       if (azione === "messaggio") {
-        const nomeLido = voce.querySelector(".nome-lido").textContent;
+        const nomeLido = nomiLidi.get(chatId) || "senza nome";
         const testo = prompt(`Messaggio da inviare a "${nomeLido}" (va sul canale Telegram lidi, si può usare <b>grassetto</b>/<i>corsivo</i> in HTML):`);
         if (testo === null) return; // annullato
         const testoPulito = testo.trim();
@@ -384,7 +410,7 @@ async function caricaAttivi() {
       }
 
       if (azione === "richiedi_telefono") {
-        const nomeLido = voce.querySelector(".nome-lido").textContent;
+        const nomeLido = nomiLidi.get(chatId) || "senza nome";
         if (!confirm(`Mandare a "${nomeLido}" il messaggio con il pulsante per condividere il numero di telefono?`)) return;
 
         bottone.disabled = true;
@@ -399,7 +425,7 @@ async function caricaAttivi() {
       }
 
       if (azione === "rinomina") {
-        const nomeAttuale = voce.querySelector(".nome-lido").textContent;
+        const nomeAttuale = nomiLidi.get(chatId) || "";
         const nomeNuovo = prompt("Nuovo nome da visualizzare per questo lido:", nomeAttuale);
         if (nomeNuovo === null) return; // annullato
         const nomeNuovoPulito = nomeNuovo.trim();
